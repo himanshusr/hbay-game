@@ -1,6 +1,17 @@
 // Environment elements
 let sky, stars, ground, campusPaths, collegeBuildings, palmTrees, benches, balloons;
 
+// Variables needed
+var isCarryingSeed = false;
+var heldSeed = null;
+var pickupDistance = 2.0; // Adjust based on your game's scale
+var seedsArray = []; // Will store all seed objects
+
+// Keep track of key press states
+var lastCKeyState = false;
+var lastDKeyState = false;
+var pickupCooldown = 0;
+
 // Initialize all environment elements
 function setupEnvironment() {
     sky = createGradientSky();
@@ -23,8 +34,23 @@ function setupEnvironment() {
     benches = createBenches();
     scene.add(benches);
     
-    balloons = createBalloons();
-    scene.add(balloons);
+    // Removed balloons from initialization
+    // balloons = createBalloons();
+    // scene.add(balloons);
+    
+    // Create and add seeds
+    const seeds = createSeeds();
+    
+    // Show/hide the C icon based on proximity to seeds
+    cIcon = createCIcon();
+    cIcon.position.set(22, 1.5, -15); // Position above the table
+    scene.add(cIcon);
+    cIcon.visible = false; // Initially hidden
+    
+    // Create D icon for dropping seeds
+    dIcon = createDIcon();
+    scene.add(dIcon);
+    dIcon.visible = false; // Initially hidden
 }
 
 // Gradient evening sky
@@ -155,6 +181,51 @@ function createCollegeBuildings() {
     mainBuilding.receiveShadow = true;
     buildingsGroup.add(mainBuilding);
     
+    // Add large keyhole to the building (made smaller)
+    const keyholeGroup = new THREE.Group();
+    
+    // Circular top part of keyhole (reduced size from 2 to 1.5)
+    const circleGeometry = new THREE.CircleGeometry(1.5, 32);
+    const keyholeMaterial = new THREE.MeshStandardMaterial({
+        color: 0x000000,
+        roughness: 0.5,
+        metalness: 0.2,
+        side: THREE.DoubleSide
+    });
+    const circleTop = new THREE.Mesh(circleGeometry, keyholeMaterial);
+    circleTop.position.set(0, 7, -22.95);
+    keyholeGroup.add(circleTop);
+    
+    // Rectangular bottom part of keyhole (reduced width from 1.2 to 0.9)
+    const rectGeometry = new THREE.PlaneGeometry(0.9, 2.5);
+    const rectBottom = new THREE.Mesh(rectGeometry, keyholeMaterial);
+    rectBottom.position.set(0, 4.8, -22.95);
+    keyholeGroup.add(rectBottom);
+    
+    // Add a slight glow around the keyhole (adjusted size to match)
+    const glowMaterial = new THREE.MeshBasicMaterial({
+        color: 0x3399ff,
+        transparent: true,
+        opacity: 0.3,
+        side: THREE.DoubleSide
+    });
+    
+    const glowCircle = new THREE.Mesh(
+        new THREE.CircleGeometry(1.7, 32),
+        glowMaterial
+    );
+    glowCircle.position.set(0, 7, -22.90);
+    keyholeGroup.add(glowCircle);
+    
+    const glowRect = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.1, 2.7),
+        glowMaterial
+    );
+    glowRect.position.set(0, 4.8, -22.90);
+    keyholeGroup.add(glowRect);
+    
+    buildingsGroup.add(keyholeGroup);
+    
     const roofGeometry = new THREE.ConeGeometry(16, 5, 4);
     const roofMaterial = new THREE.MeshStandardMaterial({ 
         color: 0xc94a3b, // Rich terra cotta roof
@@ -166,15 +237,6 @@ function createCollegeBuildings() {
     roof.castShadow = true;
     buildingsGroup.add(roof);
     
-    const archMaterial = new THREE.MeshStandardMaterial({ color: 0xd9a686 });
-    for (let i = -2; i <= 2; i++) {
-        const archGeometry = new THREE.TorusGeometry(2, 0.2, 16, 32, Math.PI);
-        const arch = new THREE.Mesh(archGeometry, archMaterial);
-        arch.position.set(i * 4, 3, -23);
-        arch.rotation.x = Math.PI / 2;
-        arch.castShadow = true;
-        buildingsGroup.add(arch);
-    }
     
     for (let i = 0; i < 6; i++) {
         const windowGeometry = new THREE.PlaneGeometry(2, 3.5);
@@ -215,6 +277,137 @@ function createCollegeBuildings() {
     
     createSideBuilding(-22, -25);
     createSideBuilding(22, -25);
+    
+    // Add Ghibli-style white table to the right side building
+    const tableGroup = new THREE.Group();
+    
+    // Table top - slightly rounded edges for Ghibli style
+    const tableTopGeometry = new THREE.CylinderGeometry(2.5, 2.5, 0.2, 16);
+    const tableWhiteMaterial = new THREE.MeshStandardMaterial({
+        color: 0xfffaf0, // Warm white
+        roughness: 0.3,
+        metalness: 0.1
+    });
+    const tableTop = new THREE.Mesh(tableTopGeometry, tableWhiteMaterial);
+    tableTop.position.set(0, 0.7, 0);
+    tableGroup.add(tableTop);
+    
+    // Table legs with Ghibli-style curved design
+    for (let i = 0; i < 4; i++) {
+        const angle = (i / 4) * Math.PI * 2;
+        const xPos = Math.cos(angle) * 1.8;
+        const zPos = Math.sin(angle) * 1.8;
+        
+        // Create curved leg
+        const legPoints = [];
+        for (let j = 0; j <= 5; j++) {
+            const y = j * 0.14;
+            // Add slight curve for whimsical Ghibli look
+            const xCurve = 0.1 * Math.sin(j / 5 * Math.PI);
+            legPoints.push(new THREE.Vector3(xCurve, y, 0));
+        }
+        
+        const legCurve = new THREE.CatmullRomCurve3(legPoints);
+        const legGeometry = new THREE.TubeGeometry(legCurve, 8, 0.12, 8, false);
+        const leg = new THREE.Mesh(legGeometry, tableWhiteMaterial);
+        
+        leg.position.set(xPos, 0, zPos);
+        leg.rotation.y = -angle;
+        tableGroup.add(leg);
+    }
+    
+    // Small decorative cloth with Ghibli pattern
+    const clothGeometry = new THREE.CircleGeometry(1.8, 16);
+    const clothMaterial = new THREE.MeshStandardMaterial({
+        color: 0xE6CCB2, // Soft beige
+        roughness: 0.7,
+        side: THREE.DoubleSide
+    });
+    const cloth = new THREE.Mesh(clothGeometry, clothMaterial);
+    cloth.rotation.x = -Math.PI / 2;
+    cloth.position.set(0, 0.71, 0);
+    tableGroup.add(cloth);
+    
+    // Add small teapot (Ghibli-style)
+    const teapotGroup = new THREE.Group();
+    
+    // Teapot body
+    const teapotBodyGeometry = new THREE.SphereGeometry(0.4, 16, 16);
+    const teapotMaterial = new THREE.MeshStandardMaterial({
+        color: 0xFFFFFF, // White
+        roughness: 0.2,
+        metalness: 0.1
+    });
+    const teapotBody = new THREE.Mesh(teapotBodyGeometry, teapotMaterial);
+    teapotBody.scale.set(1, 0.8, 1);
+    teapotBody.position.y = 0.32;
+    teapotGroup.add(teapotBody);
+    
+    // Teapot spout
+    const spoutCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(0.1, 0, 0.2),
+        new THREE.Vector3(0.3, 0, 0.4),
+        new THREE.Vector3(0.5, 0, 0.5)
+    ]);
+    const spoutGeometry = new THREE.TubeGeometry(spoutCurve, 8, 0.08, 8, false);
+    const spout = new THREE.Mesh(spoutGeometry, teapotMaterial);
+    spout.position.set(0, 0.32, 0);
+    teapotGroup.add(spout);
+    
+    // Teapot handle
+    const handleCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(-0.2, 0.1, 0),
+        new THREE.Vector3(-0.3, 0.2, 0),
+        new THREE.Vector3(-0.2, 0.3, 0),
+        new THREE.Vector3(0, 0.4, 0)
+    ]);
+    const handleGeometry = new THREE.TubeGeometry(handleCurve, 8, 0.06, 8, false);
+    const handle = new THREE.Mesh(handleGeometry, teapotMaterial);
+    handle.position.set(0, 0.2, 0);
+    teapotGroup.add(handle);
+    
+    // Add the teapot to the table
+    teapotGroup.position.set(0.5, 0.71, 0);
+    tableGroup.add(teapotGroup);
+    
+    // Add fine grains (updated to Ghibli-style green, oval, and flat seeds)
+    const seedGeometry = new THREE.SphereGeometry(0.15, 16, 16); // More detailed geometry
+    const seedMaterial = new THREE.MeshStandardMaterial({
+        color: 0x728C00, // Green color
+        roughness: 0.5,
+        metalness: 0.2
+    });
+    
+    for (let i = 0; i < 6; i++) {
+        const seed = new THREE.Mesh(seedGeometry, seedMaterial);
+        seed.scale.set(1.5, 0.3, 1); // Oval and flat shape
+        // Increase randomization range for wider scattering
+        const xOffset = (Math.random() - 0.5) * 0.6; // Wider range
+        const zOffset = (Math.random() - 0.5) * 0.6; // Wider range
+        seed.position.set(-0.7 + xOffset, 0.96, zOffset);
+        
+        // Add subtle rotation for a more natural look
+        seed.rotation.set(
+            Math.random() * Math.PI,
+            Math.random() * Math.PI,
+            Math.random() * Math.PI
+        );
+        
+        // Add a slight variation in color for each seed
+        seed.material.color.setHSL(
+            0.3, // Hue for green
+            0.5 + Math.random() * 0.1, // Saturation
+            0.4 + Math.random() * 0.1 // Lightness
+        );
+        
+        tableGroup.add(seed);
+    }
+    
+    // Position the entire table on top of the right side building
+    tableGroup.position.set(22, 0, -15);
+    buildingsGroup.add(tableGroup);
     
     // Updated sign with Ghibli-style "Happy Birthday"
     const signGeometry = new THREE.BoxGeometry(12, 2.5, 0.5);
@@ -394,27 +587,387 @@ function createBench(x, z, rotation) {
     return group;
 }
 
-// Balloons
+// Balloons (function left in place but not used)
 function createBalloons() {
-    const balloonGroup = new THREE.Group();
-    const colors = [0xff5555, 0x55ff55, 0x5555ff, 0xffff55];
+    // Return empty group instead of creating balloons
+    return new THREE.Group();
+}
+
+// Function to check Zowie's proximity to the seeds
+function checkZowieProximity(zowiePosition, seedPosition, threshold) {
+    const distance = zowiePosition.distanceTo(seedPosition);
+    return distance < threshold;
+}
+
+// Function to create the "C" icon
+function createCIcon() {
+    // Create a circle with 'C' texture
+    const iconGeometry = new THREE.CircleGeometry(0.3, 32);
     
-    for (let i = 0; i < 100; i++) {
-        const balloonGeometry = new THREE.SphereGeometry(0.5, 16, 16);
-        const balloonMaterial = new THREE.MeshStandardMaterial({
-            color: colors[Math.floor(Math.random() * colors.length)],
-            roughness: 0.4,
-            metalness: 0.2
-        });
-        const balloon = new THREE.Mesh(balloonGeometry, balloonMaterial);
-        balloon.position.set(
-            (Math.random() - 0.5) * 10,
-            2 + Math.random() * 2,
-            -24 + (Math.random() - 0.5) * 5
+    // Create canvas for drawing the C
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const context = canvas.getContext('2d');
+    
+    // Draw circle background
+    context.fillStyle = '#FFFFFF';
+    context.beginPath();
+    context.arc(64, 64, 60, 0, Math.PI * 2);
+    context.fill();
+    
+    // Draw C letter
+    context.fillStyle = '#000000';
+    context.font = 'bold 80px Arial';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText('C', 64, 64);
+    
+    // Create texture from canvas
+    const texture = new THREE.Texture(canvas);
+    texture.needsUpdate = true;
+    
+    // Create material with transparency
+    const iconMaterial = new THREE.MeshBasicMaterial({
+        map: texture,
+        transparent: true,
+        side: THREE.DoubleSide
+    });
+    
+    // Create mesh
+    const icon = new THREE.Mesh(iconGeometry, iconMaterial);
+    
+    return icon;
+}
+
+// Function to create seeds and store them in seedsArray
+function createSeeds() {
+    const seedGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+    const seedMaterial = new THREE.MeshStandardMaterial({
+        color: 0x728C00, // Green color
+        roughness: 0.5,
+        metalness: 0.2
+    });
+    
+    // Create a group for all seeds
+    const seedsGroup = new THREE.Group();
+    
+    // Position of the table (where seeds are)
+    const tablePosition = new THREE.Vector3(22, 0, -15);
+    
+    for (let i = 0; i < 6; i++) {
+        const seed = new THREE.Mesh(seedGeometry, seedMaterial);
+        seed.scale.set(1.5, 0.3, 1); // Oval and flat shape
+        
+        // Increase randomization range for wider scattering
+        const xOffset = (Math.random() - 0.5) * 0.6; // Wider range
+        const zOffset = (Math.random() - 0.5) * 0.6; // Wider range
+        seed.position.set(tablePosition.x + xOffset, tablePosition.y + 0.96, tablePosition.z + zOffset);
+        
+        // Add subtle rotation for a more natural look
+        seed.rotation.set(
+            Math.random() * Math.PI,
+            Math.random() * Math.PI,
+            Math.random() * Math.PI
         );
-        balloon.castShadow = true;
-        balloonGroup.add(balloon);
+        
+        // Add a slight variation in color for each seed
+        seed.material = seedMaterial.clone();
+        seed.material.color.setHSL(
+            0.3, // Hue for green
+            0.5 + Math.random() * 0.1, // Saturation
+            0.4 + Math.random() * 0.1 // Lightness
+        );
+        
+        // Add to scene and store in seedsArray
+        seedsGroup.add(seed);
+        seedsArray.push(seed);
     }
     
-    return balloonGroup;
+    scene.add(seedsGroup);
+    return seedsGroup;
+}
+
+// Function to handle seed pickup and drop
+function handleSeedInteraction() {
+    const cPressed = keys['c'] || false;
+    const dPressed = keys['d'] || false;
+    
+    // Handle pickup (C key)
+    if (cPressed && !lastCKeyState) {
+        console.log("C key newly pressed");
+        
+        // Check cooldown to prevent rapid toggling
+        if (pickupCooldown <= 0 && !isCarryingSeed) {
+            console.log("Attempting to pick up seed");
+            tryPickupSeed();
+            
+            // // Set cooldown to prevent multiple actions
+            // pickupCooldown = 0.5; // seconds
+        }
+    }
+    
+    // Handle drop (D key)
+    if (dPressed && !lastDKeyState) {
+        console.log("D key newly pressed");
+        
+        // Check cooldown and if carrying a seed
+        if (pickupCooldown <= 0 && isCarryingSeed) {
+            console.log("Attempting to drop seed");
+            dropSeed();
+            
+            // // Set cooldown to prevent multiple actions
+            // pickupCooldown = 0.5; // seconds
+        }
+    }
+    
+    // Update cooldown
+    if (pickupCooldown > 0) {
+        pickupCooldown -= clock.getDelta();
+    }
+    
+    // Store current key states for next frame
+    lastCKeyState = cPressed;
+    lastDKeyState = dPressed;
+}
+
+// Try to pick up a seed near Zowie
+function tryPickupSeed() {
+    if (!zowieCharacter) return;
+    
+    const zowiePosition = zowieCharacter.position.clone();
+    console.log("Zowie position:", zowiePosition);
+    console.log("Number of seeds:", seedsArray.length);
+    
+    // Only try picking up if there are seeds available
+    if (seedsArray.length === 0) {
+        console.log("No seeds available to pick up");
+        return;
+    }
+    
+    // Sort seeds by distance to pick closest one first
+    seedsArray.sort((a, b) => {
+        const distA = zowiePosition.distanceTo(a.position);
+        const distB = zowiePosition.distanceTo(b.position);
+        return distA - distB;
+    });
+    
+    // Check the closest seed
+    const closestSeed = seedsArray[0];
+    const distance = zowiePosition.distanceTo(closestSeed.position);
+    
+    console.log("Distance to closest seed: " + distance);
+    
+    // Use a slightly larger pickup distance for better usability
+    if (distance <= pickupDistance * 1.2) {
+        console.log("Picking up seed at distance: " + distance);
+        pickupSeed(closestSeed);
+    } else {
+        console.log("No seeds within pickup distance");
+    }
+}
+
+// Pick up a seed
+function pickupSeed(seed) {
+    isCarryingSeed = true;
+    heldSeed = seed;
+    
+    // Remove from seedsArray (to avoid picking up the same seed twice)
+    const index = seedsArray.indexOf(seed);
+    if (index > -1) {
+        seedsArray.splice(index, 1);
+    }
+    
+    // Hide the seed in its original position
+    seed.visible = false;
+    
+    // Create a new mesh for the held seed
+    const heldSeedGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+    const heldSeedMaterial = seed.material.clone();
+    const heldSeedMesh = new THREE.Mesh(heldSeedGeometry, heldSeedMaterial);
+    heldSeedMesh.scale.set(1.5, 0.3, 1);
+    
+    // Find Zowie's right hand bone
+    let rightHand = null;
+    zowieCharacter.traverse(function(child) {
+        // Look for common hand bone names in FBX models
+        if (child.name && (
+            child.name.includes('RightHand') || 
+            child.name.includes('Hand_R') || 
+            child.name.includes('right_hand') ||
+            child.name.includes('mixamorig:RightHand') ||
+            child.name.includes('hand_r')
+        )) {
+            rightHand = child;
+            console.log("Found hand bone:", child.name);
+        }
+    });
+    
+    // If we found the hand bone, attach to it
+    if (rightHand) {
+        rightHand.add(heldSeedMesh);
+        // Position in palm of hand
+        heldSeedMesh.position.set(0, 0.01, 0.04);
+        // Rotate to fit in palm
+        heldSeedMesh.rotation.set(Math.PI/2, 0, 0);
+    } else {
+        // Fallback: attach to character and position offset to approximate hand position
+        console.log("Hand bone not found, using fallback positioning");
+        zowieCharacter.add(heldSeedMesh);
+        heldSeedMesh.position.set(0.15, 0.7, 0.3); // Adjusted to be more visible in hand position
+    }
+    
+    heldSeed = {
+        originalSeed: seed,
+        heldMesh: heldSeedMesh,
+        attachedTo: rightHand || zowieCharacter
+    };
+    
+    console.log("Seed picked up successfully");
+}
+
+// Drop the held seed
+function dropSeed() {
+    if (!isCarryingSeed || !heldSeed) return;
+    
+    // Remove from wherever it was attached
+    heldSeed.attachedTo.remove(heldSeed.heldMesh);
+    
+    // Make original seed visible again, at Zowie's position
+    const seed = heldSeed.originalSeed;
+    seed.position.copy(zowieCharacter.position);
+    // Place seed slightly in front of Zowie
+    const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(zowieCharacter.quaternion);
+    seed.position.add(direction.multiplyScalar(0.5));
+    seed.position.y = 0.96; // Set proper height
+    seed.visible = true;
+    
+    // Add back to seedsArray
+    seedsArray.push(seed);
+    
+    isCarryingSeed = false;
+    heldSeed = null;
+    
+    console.log("Seed dropped successfully");
+}
+
+// Update function to check Zowie's position and show/hide the "C" icon
+function updateEnvironment() {
+    if (!zowieCharacter) return;
+    
+    const zowiePosition = zowieCharacter.position.clone();
+    
+    // Calculate if Zowie is near any seed
+    let nearAnySeed = false;
+    let closestDistance = Infinity;
+    
+    // Find the closest seed
+    for (let i = 0; i < seedsArray.length; i++) {
+        const seed = seedsArray[i];
+        const distance = zowiePosition.distanceTo(seed.position);
+        if (distance < closestDistance) {
+            closestDistance = distance;
+        }
+    }
+    
+    // Near seeds if closest seed is within pickup distance
+    nearAnySeed = closestDistance <= pickupDistance * 1.2;
+    
+    // Update icons visibility
+    if (cIcon && dIcon) {
+        // C icon only shown when near seeds and not carrying
+        if (!isCarryingSeed && nearAnySeed && seedsArray.length > 0) {
+            cIcon.visible = true;
+            dIcon.visible = false;
+            
+            // Position the C icon at the top right of the screen
+            cIcon.position.set(
+                window.innerWidth - 50, // Adjust for your layout
+                50, // Adjust for your layout
+                0
+            );
+            
+            // Display text instruction
+            displayText('Press C to collect');
+        } 
+        // D icon only shown when carrying a seed
+        else if (isCarryingSeed) {
+            cIcon.visible = false;
+            dIcon.visible = true;
+            
+            // Position the D icon at the top right of the screen
+            dIcon.position.set(
+                window.innerWidth - 50, // Adjust for your layout
+                50, // Adjust for your layout
+                0
+            );
+            
+            // Display text instruction
+            displayText('Press D to drop');
+        }
+        // Hide both when not near seeds and not carrying
+        else {
+            cIcon.visible = false;
+            dIcon.visible = false;
+            displayText(''); // Clear text
+        }
+    }
+    
+    // Handle key press for seed pickup and drop
+    handleSeedInteraction();
+}
+// Function to display text instructions
+function displayText(message) {
+    const textElement = document.getElementById('instructionText');
+    if (textElement) {
+        textElement.innerText = message;
+    }
+}
+
+// Function to display text instructions
+function displayText(message) {
+    const textElement = document.getElementById('instructionText');
+    if (textElement) {
+        textElement.innerText = message;
+    }
+}
+// Create a "D" icon to show when carrying a seed
+function createDIcon() {
+    // Create a circle with 'D' texture
+    const iconGeometry = new THREE.CircleGeometry(0.3, 32);
+    
+    // Create canvas for drawing the D
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const context = canvas.getContext('2d');
+    
+    // Draw circle background
+    context.fillStyle = '#FFFFFF';
+    context.beginPath();
+    context.arc(64, 64, 60, 0, Math.PI * 2);
+    context.fill();
+    
+    // Draw D letter
+    context.fillStyle = '#000000';
+    context.font = 'bold 80px Arial';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText('D', 64, 64);
+    
+    // Create texture from canvas
+    const texture = new THREE.Texture(canvas);
+    texture.needsUpdate = true;
+    
+    // Create material with transparency
+    const iconMaterial = new THREE.MeshBasicMaterial({
+        map: texture,
+        transparent: true,
+        side: THREE.DoubleSide
+    });
+    
+    // Create mesh
+    const icon = new THREE.Mesh(iconGeometry, iconMaterial);
+    
+    return icon;
 }

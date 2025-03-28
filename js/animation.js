@@ -1,6 +1,10 @@
 // Animation state
 let balloonsReleased = false;
 
+// Variables to track mouse state
+let isMouseDown = false;
+let previousMousePosition = { x: 0, y: 0 };
+
 // Main animation loop
 function animate() {
     requestAnimationFrame(animate);
@@ -31,6 +35,9 @@ function animate() {
     
     // Check for balloon release trigger
     checkBalloonRelease(delta);
+    
+    // Update environment
+    updateEnvironment();
     
     // Update camera info display
     updateCameraInfo();
@@ -76,3 +83,36 @@ function updateCameraInfo() {
         window.cameraInfo.textContent = `Camera: x:${camera.position.x.toFixed(2)} y:${camera.position.y.toFixed(2)} z:${camera.position.z.toFixed(2)}`;
     }
 }
+
+// Add event listeners for mouse actions
+window.addEventListener('mousedown', (event) => {
+    if (event.button === 0) { // Only trigger on left mouse button
+        isMouseDown = true;
+        previousMousePosition = { x: event.clientX, y: event.clientY };
+    }
+});
+
+window.addEventListener('mouseup', () => {
+    isMouseDown = false;
+});
+
+window.addEventListener('mousemove', (event) => {
+    if (!isMouseDown) return;
+
+    const deltaX = event.clientX - previousMousePosition.x;
+    const deltaY = event.clientY - previousMousePosition.y;
+
+    // Update camera rotation based on mouse movement
+    camera.rotation.y -= deltaX * 0.002;
+    
+    // Limit vertical rotation to prevent camera flipping
+    const newXRotation = camera.rotation.x - deltaY * 0.002;
+    camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, newXRotation));
+
+    previousMousePosition = { x: event.clientX, y: event.clientY };
+});
+
+// Optional: prevent context menu on right-click
+window.addEventListener('contextmenu', (event) => {
+    event.preventDefault();
+});

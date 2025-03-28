@@ -66,7 +66,7 @@ function setupControls() {
     controls.enabled = false;
     controls.target.set(0, 1.5, 0);
     
-    // Cursor control on click-and-drag
+    // Enable angle change on click-and-drag
     document.addEventListener('mousedown', () => {
         controls.enabled = true;
         document.body.style.cursor = 'grabbing';

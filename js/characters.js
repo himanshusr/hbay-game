@@ -22,6 +22,31 @@ function loadCharacters() {
             yourCharacter.position.set(-1, fixedHeight, 0);
             const scale = getAppropriateScale(object) * 1.3;
             yourCharacter.scale.set(scale, scale, scale);
+            
+            // Make HSR character color lighter
+            yourCharacter.traverse(function(child) {
+                if (child.isMesh && child.material) {
+                    // Handle array of materials
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(material => {
+                            if (material.color) {
+                                // Lighten the color by increasing RGB values
+                                material.color.r = Math.min(1, material.color.r * 1.3);
+                                material.color.g = Math.min(1, material.color.g * 1.3);
+                                material.color.b = Math.min(1, material.color.b * 1.3);
+                            }
+                        });
+                    } 
+                    // Handle single material
+                    else if (child.material.color) {
+                        // Lighten the color by increasing RGB values
+                        child.material.color.r = Math.min(1, child.material.color.r * 1.3);
+                        child.material.color.g = Math.min(1, child.material.color.g * 1.3);
+                        child.material.color.b = Math.min(1, child.material.color.b * 1.3);
+                    }
+                }
+            });
+            
             scene.add(yourCharacter);
             
             log(`HSR character loaded and positioned at y=${fixedHeight}, scale=${scale}`);
