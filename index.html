@@ -4,49 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Happy Birthday Zowie!</title>
-    <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            font-family: 'Comic Sans MS', cursive, sans-serif;
-        }
-        canvas {
-            display: block;
-        }
-        #loading {
-            position: absolute;
-            top: 50%;
-            width: 100%;
-            text-align: center;
-            font-size: 24px;
-            color: white;
-            transform: translateY(-50%);
-            z-index: 100;
-            text-shadow: 0 0 5px #000;
-        }
-        #birthday-message {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 36px;
-            color: white;
-            text-shadow: 0 0 10px #ff69b4, 0 0 20px #ff69b4;
-            opacity: 0;
-            transition: opacity 2s;
-            text-align: center;
-            z-index: 10;
-        }
-        #instructions {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            color: white;
-            text-shadow: 0 0 3px #000;
-            font-size: 16px;
-            z-index: 10;
-        }
-    </style>
+    <link rel="stylesheet" href="styles/style.css">
 </head>
 <body>
     <div id="loading">Loading the magic... please wait</div>
@@ -56,17 +14,21 @@
     </div>
     <div id="instructions">Arrow keys to move, Space to toggle camera view</div>
     
-    <!-- Add the fflate library before THREE.js -->
+    <!-- Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/fflate@0.7.4/umd/index.min.js"></script>
-    
-    <!-- Import THREE.js from CDN -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.137.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.137.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.137.0/examples/js/loaders/FBXLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.137.0/examples/js/objects/Sky.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.137.0/examples/js/objects/Water.js"></script>
     
-    <!-- Import main script -->
-    <script src="main.js"></script>
+    <!-- Application scripts (order matters) -->
+    <script src="js/utils.js"></script>
+    <script src="js/scene.js"></script>
+    <script src="js/environment.js"></script>
+    <script src="js/controls.js"></script>
+    <script src="js/characters.js"></script>
+    <script src="js/animation.js"></script>
+    <script src="js/main.js"></script>
 </body>
-</html> 
+</html>

@@ -1,0 +1,42 @@
+body {
+    margin: 0;
+    overflow: hidden;
+    font-family: 'Comic Sans MS', cursive, sans-serif;
+}
+canvas {
+    display: block;
+}
+#loading {
+    position: absolute;
+    top: 50%;
+    width: 100%;
+    text-align: center;
+    font-size: 24px;
+    color: white;
+    transform: translateY(-50%);
+    z-index: 100;
+    text-shadow: 0 0 5px #000;
+}
+#birthday-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 36px;
+    color: white;
+    text-shadow: 0 0 10px #ff69b4, 0 0 20px #ff69b4;
+    opacity: 0;
+    transition: opacity 2s;
+    text-align: center;
+    z-index: 10;
+}
+#instructions {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    color: white;
+    text-shadow: 0 0 3px #000;
+    font-size: 16px;
+    z-index: 10;
+    opacity: 0;
+}
