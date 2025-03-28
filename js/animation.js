@@ -17,12 +17,7 @@ function animate() {
         stars.material.opacity = 0.7 + Math.sin(elapsedTime * 0.5) * 0.3;
     }
     
-    // Animate palm trees swaying
-    if (palmTrees) {
-        palmTrees.children.forEach(tree => {
-            tree.rotation.z = Math.sin(elapsedTime * 0.3) * 0.05;
-        });
-    }
+
     
     // Update character animations
     if (yourMixer) yourMixer.update(delta);
@@ -41,6 +36,14 @@ function animate() {
     
     // Update camera info display
     updateCameraInfo();
+
+    if (palmTrees) {
+        palmTrees.children.forEach(tree => {
+            if (tree.userData.update) {
+                tree.userData.update(elapsedTime);
+            }
+        });
+    }
     
     // Render the scene
     renderer.render(scene, camera);
