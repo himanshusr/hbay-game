@@ -14,6 +14,11 @@ var lastCKeyState = false;
 var lastDKeyState = false;
 var pickupCooldown = 0;
 
+// Add these variables at the top of the file with other variables
+var isCarryingBucket = false;
+var heldBucket = null;
+var bucket = null;
+
 // Initialize all environment elements
 function setupEnvironment() {
     sky = createGradientSky();
@@ -60,6 +65,13 @@ function setupEnvironment() {
     // Add the dirt patch
     const dirtPatch = createDirtPatch();
     scene.add(dirtPatch);
+
+    // Add the red bucket
+    const redBucket = createRedBucket();
+    scene.add(redBucket);
+    
+    // Store the bucket for interaction
+    bucket = redBucket;
 }
 
 // Campus ground
@@ -207,45 +219,48 @@ function createSeeds() {
     return seedsGroup;
 }
 
-// Function to handle seed pickup and drop
+// Function to handle seed and bucket interaction with keyboard
 function handleSeedInteraction() {
-    const cPressed = keys['c'] || false;
-    const dPressed = keys['d'] || false;
-    
-    // Handle pickup (C key)
-    if (cPressed && !lastCKeyState) {
-        console.log("C key newly pressed");
-        
-        // Check cooldown to prevent rapid toggling
-        if (pickupCooldown <= 0 && !isCarryingSeed) {
-            console.log("Attempting to pick up seed");
-            tryPickupSeed();
-
-        }
-    }
-    
-    // Handle drop (D key)
-    if (dPressed && !lastDKeyState) {
-        console.log("D key newly pressed");
-        
-        // Check cooldown and if carrying a seed
-        if (pickupCooldown <= 0 && isCarryingSeed) {
-            console.log("Attempting to drop seed");
-            dropSeed();
-            
-            // // Set cooldown to prevent multiple actions
-            // pickupCooldown = 0.5; // seconds
-        }
-    }
-    
-    // Update cooldown
+    // Handle pickup cooldown
     if (pickupCooldown > 0) {
-        pickupCooldown -= clock.getDelta();
+        pickupCooldown--;
+        return;
     }
     
-    // Store current key states for next frame
-    lastCKeyState = cPressed;
-    lastDKeyState = dPressed;
+    // Check current key states
+    const cKeyPressed = keys['c'] || keys['C'];
+    const dKeyPressed = keys['d'] || keys['D'];
+    
+    // C key for pickup
+    if (cKeyPressed && !lastCKeyState) {
+        if (!isCarryingSeed && !isCarryingBucket) {
+            // First check if near bucket
+            if (isNearBucket()) {
+                pickupBucket();
+                pickupCooldown = 10; // Prevent multiple pickups
+            } 
+            // Then check for seeds
+            else {
+                tryPickupSeed();
+                pickupCooldown = 10;
+            }
+        }
+    }
+    
+    // D key for dropping
+    if (dKeyPressed && !lastDKeyState) {
+        if (isCarryingSeed) {
+            dropSeed();
+            pickupCooldown = 10;
+        } else if (isCarryingBucket) {
+            dropBucket();
+            pickupCooldown = 10;
+        }
+    }
+    
+    // Update last key states
+    lastCKeyState = cKeyPressed;
+    lastDKeyState = dKeyPressed;
 }
 
 // Try to pick up a seed near Zowie
@@ -390,39 +405,50 @@ function updateEnvironment() {
     // Near seeds if closest seed is within pickup distance
     nearAnySeed = closestDistance <= pickupDistance * 1.2;
     
+    // Check if near bucket
+    const nearBucket = isNearBucket();
+    
     // Update icons visibility
     if (cIcon && dIcon) {
-        // C icon only shown when near seeds and not carrying
-        if (!isCarryingSeed && nearAnySeed && seedsArray.length > 0) {
+        // C icon shown when near seeds or bucket and not carrying anything
+        if (!isCarryingSeed && !isCarryingBucket && (nearAnySeed || nearBucket)) {
             cIcon.visible = true;
             dIcon.visible = false;
             
             // Position the C icon at the top right of the screen
             cIcon.position.set(
-                window.innerWidth - 50, // Adjust for your layout
-                50, // Adjust for your layout
+                window.innerWidth - 50,
+                50,
                 0
             );
             
             // Display text instruction
-            displayText('Press C to collect');
+            if (nearBucket) {
+                displayText('Press C to pick up bucket');
+            } else {
+                displayText('Press C to collect seed');
+            }
         } 
-        // D icon only shown when carrying a seed
-        else if (isCarryingSeed) {
+        // D icon shown when carrying a seed or bucket
+        else if (isCarryingSeed || isCarryingBucket) {
             cIcon.visible = false;
             dIcon.visible = true;
             
             // Position the D icon at the top right of the screen
             dIcon.position.set(
-                window.innerWidth - 50, // Adjust for your layout
-                50, // Adjust for your layout
+                window.innerWidth - 50,
+                50,
                 0
             );
             
             // Display text instruction
-            displayText('Press D to drop');
+            if (isCarryingBucket) {
+                displayText('Press D to drop bucket');
+            } else {
+                displayText('Press D to drop seed');
+            }
         }
-        // Hide both when not near seeds and not carrying
+        // Hide both when not near interactive objects and not carrying
         else {
             cIcon.visible = false;
             dIcon.visible = false;
@@ -430,7 +456,7 @@ function updateEnvironment() {
         }
     }
     
-    // Handle key press for seed pickup and drop
+    // Handle key press for seed and bucket interaction
     handleSeedInteraction();
     
     // Animate water in the pond
@@ -441,5 +467,424 @@ function updateEnvironment() {
     });
 }
 
+// Function to create a red bucket
+function createRedBucket() {
+    const bucketGroup = new THREE.Group();
+    
+    // Bucket body - cylinder with slight taper
+    const bucketGeometry = new THREE.CylinderGeometry(0.4, 0.3, 0.6, 16);
+    const bucketMaterial = new THREE.MeshStandardMaterial({
+        color: 0xcc0000, // Bright red
+        roughness: 0.7,
+        metalness: 0.3
+    });
+    const bucket = new THREE.Mesh(bucketGeometry, bucketMaterial);
+    bucket.position.y = 0.3; // Half height
+    bucketGroup.add(bucket);
+    
+    // Bucket rim - slightly wider at the top
+    const rimGeometry = new THREE.TorusGeometry(0.4, 0.05, 8, 24);
+    const rimMaterial = new THREE.MeshStandardMaterial({
+        color: 0xdd0000, // Slightly brighter red
+        roughness: 0.5,
+        metalness: 0.4
+    });
+    const rim = new THREE.Mesh(rimGeometry, rimMaterial);
+    rim.position.y = 0.6; // Position at top of bucket
+    rim.rotation.x = Math.PI / 2; // Lay flat
+    bucketGroup.add(rim);
+    
+    // Bucket handle
+    const handleCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(-0.4, 0.6, 0),
+        new THREE.Vector3(-0.3, 0.9, 0),
+        new THREE.Vector3(0.3, 0.9, 0),
+        new THREE.Vector3(0.4, 0.6, 0)
+    ]);
+    const handleGeometry = new THREE.TubeGeometry(handleCurve, 12, 0.03, 8, false);
+    const handleMaterial = new THREE.MeshStandardMaterial({
+        color: 0xdd0000,
+        roughness: 0.5,
+        metalness: 0.4
+    });
+    const handle = new THREE.Mesh(handleGeometry, handleMaterial);
+    bucketGroup.add(handle);
+    
+    // Position the bucket at the edge of the pond
+    bucketGroup.position.set(21, 0, 15); // Adjust position to be at the edge of the pond
+    
+    // Add user data for interaction
+    bucketGroup.userData.isPickupable = true;
+    bucketGroup.userData.type = 'bucket';
+    
+    return bucketGroup;
+}
+
+// Function to check if Zowie is near the bucket
+function isNearBucket() {
+    if (!zowieCharacter || !bucket) return false;
+    
+    const zowiePosition = zowieCharacter.position.clone();
+    const bucketPosition = bucket.position.clone();
+    const distance = zowiePosition.distanceTo(bucketPosition);
+    
+    return distance <= pickupDistance * 1.2;
+}
 
 
+// function pickupBucket() {
+//     if (isCarryingBucket || !bucket) return;
+    
+//     isCarryingBucket = true;
+    
+//     // Hide the original bucket
+//     bucket.visible = false;
+    
+//     // Create a new mesh for the held bucket - making it smaller
+//     const heldBucketGroup = new THREE.Group();
+    
+//     // Bucket body - smaller size for holding
+//     const bucketGeometry = new THREE.CylinderGeometry(0.15, 0.12, 0.25, 16); // Reduced size
+//     const bucketMaterial = new THREE.MeshStandardMaterial({
+//         color: 0xcc0000,
+//         roughness: 0.7,
+//         metalness: 0.3
+//     });
+//     const bucketMesh = new THREE.Mesh(bucketGeometry, bucketMaterial);
+//     bucketMesh.position.y = 0.125; // Half height
+//     heldBucketGroup.add(bucketMesh);
+    
+//     // Bucket rim - smaller size for holding
+//     const rimGeometry = new THREE.TorusGeometry(0.15, 0.015, 8, 24); // Reduced size
+//     const rimMaterial = new THREE.MeshStandardMaterial({
+//         color: 0xdd0000,
+//         roughness: 0.5,
+//         metalness: 0.4
+//     });
+//     const rim = new THREE.Mesh(rimGeometry, rimMaterial);
+//     rim.position.y = 0.25; // Position at top of bucket
+//     rim.rotation.x = Math.PI / 2; // Lay flat
+//     heldBucketGroup.add(rim);
+    
+//     // Bucket handle - smaller size for holding
+//     const handleCurve = new THREE.CatmullRomCurve3([
+//         new THREE.Vector3(-0.15, 0.25, 0),
+//         new THREE.Vector3(-0.12, 0.35, 0),
+//         new THREE.Vector3(0.12, 0.35, 0),
+//         new THREE.Vector3(0.15, 0.25, 0)
+//     ]);
+//     const handleGeometry = new THREE.TubeGeometry(handleCurve, 12, 0.01, 8, false);
+//     const handleMaterial = new THREE.MeshStandardMaterial({
+//         color: 0xdd0000,
+//         roughness: 0.5,
+//         metalness: 0.4
+//     });
+//     const handle = new THREE.Mesh(handleGeometry, handleMaterial);
+//     heldBucketGroup.add(handle);
+    
+//     // Find Zowie's right hand bone
+//     let rightHand = null;
+//     zowieCharacter.traverse(function(child) {
+//         if (child.name && (
+//             child.name.includes('RightHand') || 
+//             child.name.includes('Hand_R') || 
+//             child.name.includes('right_hand') ||
+//             child.name.includes('mixamorig:RightHand') ||
+//             child.name.includes('hand_r')
+//         )) {
+//             rightHand = child;
+//             console.log("Found hand bone for bucket:", child.name);
+//         }
+//     });
+    
+//     // If we found the hand bone, attach to it
+//     if (rightHand) {
+//         // Create a more complex setup to maintain proper orientation
+        
+//         // First, create a main container for managing overall position
+//         const bucketContainer = new THREE.Group();
+//         rightHand.add(bucketContainer);
+        
+//         // Add an offset to position the bucket relative to the hand
+//         // bucketContainer.position.set(0, -0.1, 0.1);
+//         bucketContainer.position.set(0, 0.05, 0.1); // Move slightly up to align with palm
+
+        
+//         // Add the bucket group to the container
+//         bucketContainer.add(heldBucketGroup);
+        
+//         // Move the bucket so the handle is positioned at the parent's origin
+//         // This effectively positions the handle at the hand
+//         heldBucketGroup.position.set(0, 0.1, 0);
+        
+//         // IMPORTANT: Rotate bucket so it's fully upright (vertical)
+//         // And the handle is positioned for grabbing
+//         // heldBucketGroup.rotation.set(0, 0, 0);
+//         heldBucketGroup.rotation.set(-Math.PI / 2, 0, 0); // Rotate bucket so handle is aligned properly
+
+        
+//         // Slight adjustment to rotate handle toward fingers
+//         bucketContainer.rotation.set(0, Math.PI/4, 0);
+        
+//         heldBucket = {
+//             originalBucket: bucket,
+//             heldMesh: heldBucketGroup,
+//             container: bucketContainer,
+//             attachedTo: rightHand
+//         };
+//     } else {
+//         // Fallback: attach to character
+//         console.log("Hand bone not found for bucket, using fallback positioning");
+//         zowieCharacter.add(heldBucketGroup);
+//         heldBucketGroup.position.set(0.2, 0.7, 0.3);
+//         // heldBucketGroup.rotation.set(0, 0, 0);
+//         heldBucketGroup.rotation.set(-Math.PI / 2, 0, 0); // Rotate bucket so handle is aligned properly
+        
+//         heldBucket = {
+//             originalBucket: bucket,
+//             heldMesh: heldBucketGroup,
+//             attachedTo: zowieCharacter
+//         };
+//     }
+    
+//     console.log("Bucket picked up successfully");
+// }
+
+// function pickupBucket() {
+//     if (isCarryingBucket || !bucket) return;
+    
+//     isCarryingBucket = true;
+    
+//     // Hide the original bucket
+//     bucket.visible = false;
+    
+//     // Create a group to manage the held bucket
+//     const heldBucketGroup = new THREE.Group();
+    
+//     // Bucket body - smaller size for holding
+//     const bucketGeometry = new THREE.CylinderGeometry(0.15, 0.12, 0.25, 16); // Reduced size
+//     const bucketMaterial = new THREE.MeshStandardMaterial({
+//         color: 0xcc0000,
+//         roughness: 0.7,
+//         metalness: 0.3
+//     });
+//     const bucketMesh = new THREE.Mesh(bucketGeometry, bucketMaterial);
+//     bucketMesh.position.y = 0.125; // Half height
+//     heldBucketGroup.add(bucketMesh);
+    
+//     // Bucket rim - smaller size for holding
+//     const rimGeometry = new THREE.TorusGeometry(0.15, 0.015, 8, 24); // Reduced size
+//     const rimMaterial = new THREE.MeshStandardMaterial({
+//         color: 0xdd0000,
+//         roughness: 0.5,
+//         metalness: 0.4
+//     });
+//     const rim = new THREE.Mesh(rimGeometry, rimMaterial);
+//     rim.position.y = 0.25; // Position at top of bucket
+//     rim.rotation.x = Math.PI / 2; // Lay flat
+//     heldBucketGroup.add(rim);
+    
+//     // Bucket handle - smaller size for holding
+//     const handleCurve = new THREE.CatmullRomCurve3([
+//         new THREE.Vector3(-0.15, 0.25, 0),
+//         new THREE.Vector3(-0.12, 0.35, 0),
+//         new THREE.Vector3(0.12, 0.35, 0),
+//         new THREE.Vector3(0.15, 0.25, 0)
+//     ]);
+//     const handleGeometry = new THREE.TubeGeometry(handleCurve, 12, 0.01, 8, false);
+//     const handleMaterial = new THREE.MeshStandardMaterial({
+//         color: 0xaaaaaa,
+//         roughness: 0.5,
+//         metalness: 0.4
+//     });
+//     const handle = new THREE.Mesh(handleGeometry, handleMaterial);
+//     handle.name = "bucketHandle"; // Identify handle for attaching
+//     heldBucketGroup.add(handle);
+    
+//     // Find Zowie's right hand bone
+//     let rightHand = null;
+//     zowieCharacter.traverse(function(child) {
+//         if (child.name && (
+//             child.name.includes('RightHand') || 
+//             child.name.includes('Hand_R') || 
+//             child.name.includes('right_hand') ||
+//             child.name.includes('mixamorig:RightHand') ||
+//             child.name.includes('hand_r')
+//         )) {
+//             rightHand = child;
+//             console.log("Found hand bone for bucket:", child.name);
+//         }
+//     });
+    
+//     if (rightHand) {
+//         // Create a parent group for handling alignment
+//         const bucketContainer = new THREE.Group();
+//         rightHand.add(bucketContainer);
+        
+//         // Attach bucket to the correct position on the handle
+//         handle.geometry.computeBoundingBox();
+//         const handleCenter = handle.geometry.boundingBox.getCenter(new THREE.Vector3());
+        
+//         heldBucketGroup.position.set(-handleCenter.x, -handleCenter.y, -handleCenter.z);
+//         bucketContainer.add(heldBucketGroup);
+        
+//         // Position and rotate the container properly
+//         bucketContainer.position.set(0, 0, 0.1); // Adjusted to grip handle
+//         bucketContainer.rotation.set(-Math.PI / 2, 0, Math.PI / 2); // Rotate for natural handle hold
+//     } else {
+//         // Fallback: attach to character if hand not found
+//         console.log("Hand bone not found for bucket, using fallback positioning");
+//         zowieCharacter.add(heldBucketGroup);
+//         heldBucketGroup.position.set(0.2, 0.7, 0.3);
+//         heldBucketGroup.rotation.set(-Math.PI / 2, 0, 0);
+//     }
+    
+//     heldBucket = {
+//         originalBucket: bucket,
+//         heldMesh: heldBucketGroup,
+//         attachedTo: rightHand || zowieCharacter
+//     };
+    
+//     console.log("Bucket picked up successfully by the handle!");
+// }
+function pickupBucket() {
+    if (isCarryingBucket || !bucket) return;
+    
+    isCarryingBucket = true;
+    bucket.visible = false;
+    
+    const heldBucketGroup = new THREE.Group();
+    
+    const bucketGeometry = new THREE.CylinderGeometry(0.15, 0.12, 0.25, 16);
+    const bucketMaterial = new THREE.MeshStandardMaterial({
+        color: 0xcc0000,
+        roughness: 0.7,
+        metalness: 0.3
+    });
+    const bucketMesh = new THREE.Mesh(bucketGeometry, bucketMaterial);
+    bucketMesh.position.y = 0.125; // Center of cylinder
+    heldBucketGroup.add(bucketMesh);
+    
+    const rimGeometry = new THREE.TorusGeometry(0.15, 0.015, 8, 24);
+    const rimMaterial = new THREE.MeshStandardMaterial({
+        color: 0xdd0000,
+        roughness: 0.5,
+        metalness: 0.4
+    });
+    const rim = new THREE.Mesh(rimGeometry, rimMaterial);
+    rim.position.y = 0.25;
+    rim.rotation.x = Math.PI / 2;
+    heldBucketGroup.add(rim);
+    
+    const handleCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(-0.15, 0.25, 0),
+        new THREE.Vector3(-0.12, 0.35, 0),
+        new THREE.Vector3(0.12, 0.35, 0),
+        new THREE.Vector3(0.15, 0.25, 0)
+    ]);
+    const handleGeometry = new THREE.TubeGeometry(handleCurve, 12, 0.01, 8, false);
+    const handleMaterial = new THREE.MeshStandardMaterial({
+        color: 0xaaaaaa,
+        roughness: 0.5,
+        metalness: 0.4
+    });
+    const handle = new THREE.Mesh(handleGeometry, handleMaterial);
+    handle.name = "bucketHandle";
+    heldBucketGroup.add(handle);
+    
+    let rightHand = null;
+    zowieCharacter.traverse(function(child) {
+        if (child.name && (
+            child.name.includes('RightHand') || 
+            child.name.includes('Hand_R') || 
+            child.name.includes('right_hand') ||
+            child.name.includes('mixamorig:RightHand') ||
+            child.name.includes('hand_r')
+        )) {
+            rightHand = child;
+            console.log("Found hand bone for bucket:", child.name);
+        }
+    });
+    
+    if (rightHand) {
+        const bucketContainer = new THREE.Group();
+        rightHand.add(bucketContainer);
+        
+        // // Debug: Visualize hand bone axes
+        // const axesHelper = new THREE.AxesHelper(0.5); // Red = x, Green = y, Blue = z
+        // rightHand.add(axesHelper);
+        
+        // Center the bucket on the handle
+        handle.geometry.computeBoundingBox();
+        const handleCenter = handle.geometry.boundingBox.getCenter(new THREE.Vector3());
+        heldBucketGroup.position.set(-handleCenter.x, -handleCenter.y, -handleCenter.z);
+        bucketContainer.add(heldBucketGroup);
+        
+        // Position so the handle is in the hand, bucket hangs below
+        bucketContainer.position.set(0, -0.2, 0); // Downward offset to hang below hand
+        
+        // Set rotation for upright bucket (flipped 180° from upside down)
+        bucketContainer.rotation.set(Math.PI * 0.9, 0, 0); // Rotate 180° around x-axis
+        
+        heldBucket = {
+            originalBucket: bucket,
+            heldMesh: heldBucketGroup,
+            attachedTo: rightHand,
+            container: bucketContainer
+        };
+    } else {
+        console.log("Hand bone not found for bucket, using fallback positioning");
+        zowieCharacter.add(heldBucketGroup);
+        heldBucketGroup.position.set(0.2, 0.7, 0.3);
+        heldBucketGroup.rotation.set(Math.PI, 0, 0); // Upright in fallback
+        heldBucket = {
+            originalBucket: bucket,
+            heldMesh: heldBucketGroup,
+            attachedTo: zowieCharacter
+        };
+    }
+    
+    console.log("Bucket picked up successfully in upright position!");
+}
+// Helper function to apply during animation to maintain bucket upright
+function updateGame() {
+    // If we're carrying the bucket, keep it upright
+    if (isCarryingBucket && heldBucket && heldBucket.container) {
+        // Most FBX models maintain a consistent hand orientation in animations
+        // So a fixed rotation will often work well
+        
+        // Ensure bucket stays vertical - this can be tuned as needed
+        heldBucket.heldMesh.rotation.set(-Math.PI , 0, 0);
+        
+        // Adjust container rotation to keep handle in palm
+        // This might need tweaking based on the specific model and animations
+        // heldBucket.container.rotation.set(0, Math.PI/4, 0);
+        // heldBucket.heldMesh.rotation.set(-Math.PI / 2, 0, 0);
+    }
+}
+
+// Update the dropBucket function
+function dropBucket() {
+    if (!isCarryingBucket || !heldBucket) return;
+    
+    // Remove from wherever it was attached
+    if (heldBucket.container) {
+        heldBucket.attachedTo.remove(heldBucket.container);
+    } else {
+        heldBucket.attachedTo.remove(heldBucket.heldMesh);
+    }
+    
+    // Make original bucket visible again, at Zowie's position
+    const originalBucket = heldBucket.originalBucket;
+    originalBucket.position.copy(zowieCharacter.position);
+    // Place bucket slightly in front of Zowie
+    const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(zowieCharacter.quaternion);
+    originalBucket.position.add(direction.multiplyScalar(0.7));
+    originalBucket.position.y = 0; // Set proper height
+    originalBucket.visible = true;
+    
+    isCarryingBucket = false;
+    heldBucket = null;
+    
+    console.log("Bucket dropped successfully");
+}
