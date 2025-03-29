@@ -20,6 +20,11 @@ var lastTKeyState = false;
 var isCarryingBucket = false;
 var heldBucket = null;
 var bucket = null;
+var pumpkinGrown = false; // Track if pumpkin has already grown
+var pumpkinModel = null; // Store the pumpkin model
+
+// Add this to the top with other variables
+var dirtPatchObject = null;
 
 // Initialize all environment elements
 function setupEnvironment() {
@@ -65,8 +70,8 @@ function setupEnvironment() {
     scene.add(pond);
     
     // Add the dirt patch
-    const dirtPatch = createDirtPatch();
-    scene.add(dirtPatch);
+    dirtPatchObject = createDirtPatch();
+    scene.add(dirtPatchObject);
 
     // Add the red bucket
     const redBucket = createRedBucket();
@@ -398,7 +403,8 @@ function dropSeed() {
     isCarryingSeed = false;
     heldSeed = null;
     
-    console.log("Seed dropped successfully");
+    console.log("Seed dropped successfully at position:", seed.position.toArray());
+    displayText('Seed dropped. Water it to grow a pumpkin!');
 }
 
 // Update function to check Zowie's position and show/hide the "C" icon
@@ -1049,6 +1055,61 @@ function throwWater() {
             heldBucket.hasWater = false;
         }, 300);
     }
+    
+    // Calculate where the water will land
+    setTimeout(() => {
+        if (!pumpkinGrown) {
+            // Calculate throw direction and landing position
+            const throwDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(zowieCharacter.quaternion);
+            
+            const waterLandingPosition = new THREE.Vector3(
+                zowieCharacter.position.x + throwDirection.x * 3,
+                0,
+                zowieCharacter.position.z + throwDirection.z * 3
+            );
+            
+            console.log("Water landing position:", waterLandingPosition.toArray());
+            
+            // Check if any seed is close to where the water lands
+            let nearestSeed = null;
+            let shortestDistance = Infinity;
+            
+            // Find the closest seed to the water landing position
+            for (let i = 0; i < seedsArray.length; i++) {
+                const seed = seedsArray[i];
+                const distance = waterLandingPosition.distanceTo(seed.position);
+                
+                if (distance < shortestDistance) {
+                    shortestDistance = distance;
+                    nearestSeed = seed;
+                }
+            }
+            
+            console.log("Distance to nearest seed:", shortestDistance);
+            
+            // Use a generous buffer for water detection (8 units)
+            const waterDetectionRadius = 8;
+            
+            if (nearestSeed && shortestDistance < waterDetectionRadius) {
+                console.log("Watering seed successfully!");
+                displayText('The pumpkin is growing!');
+                
+                // Grow pumpkin at the seed's position
+                growPumpkin(nearestSeed.position.clone());
+                
+                // Remove the seed that grew into a pumpkin
+                const seedIndex = seedsArray.indexOf(nearestSeed);
+                if (seedIndex > -1) {
+                    seedsArray.splice(seedIndex, 1);
+                    scene.remove(nearestSeed);
+                }
+            } else {
+                console.log("No seeds nearby to water");
+            }
+        } else {
+            console.log("Pumpkin already grown");
+        }
+    }, 1000); // Check shortly after water is thrown
 }
 
 // Enhanced water throw function with more realistic water flow
@@ -1434,4 +1495,144 @@ function createSplashEffect(position, isLargeSplash = false) {
     };
     
     animateWaves();
+}
+
+// Function to load and display the pumpkin - with improved positioning and size
+function growPumpkin(position) {
+    if (pumpkinGrown) {
+        console.log("Pumpkin already grown, not growing another");
+        return;
+    }
+    
+    console.log("Starting to grow pumpkin at", position.toArray());
+    pumpkinGrown = true;
+    
+    // Create growing animation
+    displayText('The pumpkin is sprouting!');
+    
+    // Load the pumpkin model
+    const fbxLoader = new THREE.FBXLoader();
+    console.log("Loading pumpkin model...");
+    
+    fbxLoader.load('assets/models/pumpkin.fbx', 
+        // Success callback
+        (object) => {
+            console.log("Pumpkin model loaded successfully!");
+            
+            object.traverse(function(child) {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                }
+            });
+            
+            // Position at the seed location
+            object.position.copy(position);
+            
+            // Calculate initial and final scales
+            const initialScale = 0.001;
+            const finalScale = 0.09 + Math.random() * 0.005;
+            
+            // Calculate proper y-offset based on scale to keep bottom at ground level
+            // This value might need adjustment based on the specific pumpkin model
+            const baseYOffset = 0.5;  // Base offset for the pumpkin
+            const yScaleFactor = 100;  // Multiplier that adjusts how much Y increases with scale
+            
+            // Start small
+            object.scale.set(initialScale, initialScale, initialScale);
+            object.position.y = baseYOffset * initialScale * yScaleFactor;
+            
+            // Add to scene
+            scene.add(object);
+            pumpkinModel = object;
+            
+            // Animate growth
+            const startTime = Date.now();
+            const growDuration = 3000; // 3 seconds to grow
+            
+            const animateGrowth = () => {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / growDuration, 1);
+                
+                // Ease-out growth curve
+                const scale = finalScale * Math.pow(progress, 0.5);
+                object.scale.set(scale, scale, scale);
+                
+                // Adjust Y position to keep bottom at ground level as it grows
+                object.position.y = baseYOffset * scale * yScaleFactor;
+                
+                // Add slight wobble for organic feel
+                if (progress < 1) {
+                    const wobble = Math.sin(elapsed * 0.01) * 0.1 * (1 - progress);
+                    object.rotation.y = wobble;
+                    
+                    requestAnimationFrame(animateGrowth);
+                } else {
+                    // Final position and rotation
+                    object.position.y = baseYOffset * finalScale * yScaleFactor;
+                    object.rotation.y = Math.random() * Math.PI * 2; // Random final rotation
+                    
+                    displayText('Your pumpkin has grown!');
+                }
+            };
+            
+            animateGrowth();
+        },
+        // Progress callback
+        (xhr) => {
+            console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+        },
+        // Error callback
+        (error) => {
+            console.error('Error loading pumpkin model:', error);
+            displayText('Failed to grow pumpkin :(');
+            pumpkinGrown = false; // Reset so player can try again
+        }
+    );
+}
+
+// Update the createDirtPatch function to return the correct position
+function createDirtPatch() {
+    const dirtPatchGroup = new THREE.Group();
+    
+    // Create the base of the dirt patch
+    const dirtGeometry = new THREE.CircleGeometry(2, 32);
+    const dirtMaterial = new THREE.MeshStandardMaterial({
+        color: 0x5d4037, // Brown color
+        roughness: 0.9,
+        metalness: 0.1
+    });
+    const dirtPatch = new THREE.Mesh(dirtGeometry, dirtMaterial);
+    dirtPatch.rotation.x = -Math.PI / 2; // Rotate to lie flat
+    dirtPatch.position.y = 0.01; // Slightly above ground to avoid z-fighting
+    dirtPatchGroup.add(dirtPatch);
+    
+    // Add a subtle bump to the dirt
+    const bumpGeometry = new THREE.CircleGeometry(1.8, 32);
+    const bumpMaterial = new THREE.MeshStandardMaterial({
+        color: 0x3e2723, // Darker brown
+        roughness: 1.0,
+        metalness: 0.0
+    });
+    const bump = new THREE.Mesh(bumpGeometry, bumpMaterial);
+    bump.rotation.x = -Math.PI / 2;
+    bump.position.y = 0.05;
+    dirtPatchGroup.add(bump);
+    
+    // Position the dirt patch
+    const dirtPatchPosition = new THREE.Vector3(10, 0, -8);
+    dirtPatchGroup.position.copy(dirtPatchPosition);
+    
+    // Store the position for reference
+    dirtPatchGroup.userData.position = dirtPatchPosition;
+    
+    // Debug: Add a visible marker above the dirt patch
+    const markerGeometry = new THREE.SphereGeometry(0.2, 8, 8);
+    const markerMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+    marker.position.y = 2; // Position above the dirt patch
+    marker.visible = false; // Only make visible for debugging if needed
+    dirtPatchGroup.add(marker);
+    
+    return dirtPatchGroup;
 }
