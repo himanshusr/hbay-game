@@ -22,6 +22,7 @@ var heldBucket = null;
 var bucket = null;
 var pumpkinGrown = false; // Track if pumpkin has already grown
 var pumpkinModel = null; // Store the pumpkin model
+var pumpkins = []; // Array to store all grown pumpkins
 
 // Add this to the top with other variables
 var dirtPatchObject = null;
@@ -808,18 +809,27 @@ function createWaterSplash(position) {
         particles.children.forEach(droplet => {
             // Apply velocity and gravity
             droplet.position.add(droplet.userData.velocity);
-            droplet.userData.velocity.y -= 0.003; // Gravity
+            droplet.userData.velocity.y -= 0.012; // Gravity
+            
+            // Check for ground collision to create splash
+            if (droplet.position.y <= 0.05 && !droplet.userData.hasSplashed) {
+                // Create splash at impact point - larger droplets make bigger splashes
+                const isBigSplash = droplet.scale.x > 0.05 && Math.random() > 0.6;
+                createSplashEffect(droplet.position.clone(), isBigSplash);
+                droplet.userData.hasSplashed = true;
+                droplet.visible = false;
+            }
             
             // Reduce lifetime
             droplet.userData.lifetime -= 0.016; // Approx 1 frame at 60fps
             
             // Fade out
-            if (droplet.material.opacity > 0) {
+            if (droplet.material && droplet.material.opacity > 0) {
                 droplet.material.opacity = Math.max(0, droplet.userData.lifetime / 2);
             }
             
             // Check if any particles are still alive
-            if (droplet.userData.lifetime > 0) {
+            if (droplet.userData.lifetime > 0 || !droplet.userData.hasSplashed) {
                 allDone = false;
             }
         });
@@ -1058,56 +1068,52 @@ function throwWater() {
     
     // Calculate where the water will land
     setTimeout(() => {
-        if (!pumpkinGrown) {
-            // Calculate throw direction and landing position
-            const throwDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(zowieCharacter.quaternion);
+        // Calculate throw direction and landing position
+        const throwDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(zowieCharacter.quaternion);
+        
+        const waterLandingPosition = new THREE.Vector3(
+            zowieCharacter.position.x + throwDirection.x * 3,
+            0,
+            zowieCharacter.position.z + throwDirection.z * 3
+        );
+        
+        console.log("Water landing position:", waterLandingPosition.toArray());
+        
+        // Check if any seed is close to where the water lands
+        let nearestSeed = null;
+        let shortestDistance = Infinity;
+        
+        // Find the closest seed to the water landing position
+        for (let i = 0; i < seedsArray.length; i++) {
+            const seed = seedsArray[i];
+            const distance = waterLandingPosition.distanceTo(seed.position);
             
-            const waterLandingPosition = new THREE.Vector3(
-                zowieCharacter.position.x + throwDirection.x * 3,
-                0,
-                zowieCharacter.position.z + throwDirection.z * 3
-            );
-            
-            console.log("Water landing position:", waterLandingPosition.toArray());
-            
-            // Check if any seed is close to where the water lands
-            let nearestSeed = null;
-            let shortestDistance = Infinity;
-            
-            // Find the closest seed to the water landing position
-            for (let i = 0; i < seedsArray.length; i++) {
-                const seed = seedsArray[i];
-                const distance = waterLandingPosition.distanceTo(seed.position);
-                
-                if (distance < shortestDistance) {
-                    shortestDistance = distance;
-                    nearestSeed = seed;
-                }
+            if (distance < shortestDistance) {
+                shortestDistance = distance;
+                nearestSeed = seed;
             }
+        }
+        
+        console.log("Distance to nearest seed:", shortestDistance);
+        
+        // Use a generous buffer for water detection (8 units)
+        const waterDetectionRadius = 8;
+        
+        if (nearestSeed && shortestDistance < waterDetectionRadius) {
+            console.log("Watering seed successfully!");
+            displayText('The pumpkin is growing!');
             
-            console.log("Distance to nearest seed:", shortestDistance);
+            // Grow pumpkin at the seed's position
+            growPumpkin(nearestSeed.position.clone());
             
-            // Use a generous buffer for water detection (8 units)
-            const waterDetectionRadius = 8;
-            
-            if (nearestSeed && shortestDistance < waterDetectionRadius) {
-                console.log("Watering seed successfully!");
-                displayText('The pumpkin is growing!');
-                
-                // Grow pumpkin at the seed's position
-                growPumpkin(nearestSeed.position.clone());
-                
-                // Remove the seed that grew into a pumpkin
-                const seedIndex = seedsArray.indexOf(nearestSeed);
-                if (seedIndex > -1) {
-                    seedsArray.splice(seedIndex, 1);
-                    scene.remove(nearestSeed);
-                }
-            } else {
-                console.log("No seeds nearby to water");
+            // Remove the seed that grew into a pumpkin
+            const seedIndex = seedsArray.indexOf(nearestSeed);
+            if (seedIndex > -1) {
+                seedsArray.splice(seedIndex, 1);
+                scene.remove(nearestSeed);
             }
         } else {
-            console.log("Pumpkin already grown");
+            console.log("No seeds nearby to water");
         }
     }, 1000); // Check shortly after water is thrown
 }
@@ -1499,13 +1505,7 @@ function createSplashEffect(position, isLargeSplash = false) {
 
 // Function to load and display the pumpkin - with improved positioning and size
 function growPumpkin(position) {
-    if (pumpkinGrown) {
-        console.log("Pumpkin already grown, not growing another");
-        return;
-    }
-    
     console.log("Starting to grow pumpkin at", position.toArray());
-    pumpkinGrown = true;
     
     // Create growing animation
     displayText('The pumpkin is sprouting!');
@@ -1531,11 +1531,11 @@ function growPumpkin(position) {
             
             // Calculate initial and final scales
             const initialScale = 0.001;
-            const finalScale = 0.09 + Math.random() * 0.005;
+            const finalScale = 0.06 + Math.random() * 0.05; // Bigger pumpkins
             
             // Calculate proper y-offset based on scale to keep bottom at ground level
             // This value might need adjustment based on the specific pumpkin model
-            const baseYOffset = 0.5;  // Base offset for the pumpkin
+            const baseYOffset = 0.4;  // Base offset for the pumpkin
             const yScaleFactor = 100;  // Multiplier that adjusts how much Y increases with scale
             
             // Start small
@@ -1544,7 +1544,9 @@ function growPumpkin(position) {
             
             // Add to scene
             scene.add(object);
-            pumpkinModel = object;
+            
+            // Add to pumpkins array
+            pumpkins.push(object);
             
             // Animate growth
             const startTime = Date.now();
@@ -1586,7 +1588,6 @@ function growPumpkin(position) {
         (error) => {
             console.error('Error loading pumpkin model:', error);
             displayText('Failed to grow pumpkin :(');
-            pumpkinGrown = false; // Reset so player can try again
         }
     );
 }
