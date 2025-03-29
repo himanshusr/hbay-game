@@ -3,6 +3,7 @@ let yourCharacter, zowieCharacter;
 let yourMixer, zowieMixer;
 let yourWalkAnimation, zowieWalkAnimation;
 let yourIdleAnimation, zowieIdleAnimation;
+let zowieThrowingAnimation;
 let isWalking = false;
 let hasStartedWalking = false;
 let modelsLoaded = 0;
@@ -125,6 +126,20 @@ function loadCharacters() {
                     }
                 }
             );
+
+            loadAnimation(loader, 'assets/models/zowie_throwing.fbx', 
+                (animObject) => {
+                    log('Zowie throwing animation loaded');
+                    if (animObject.animations && animObject.animations.length > 0) {
+                        zowieThrowingAnimation = zowieMixer.clipAction(animObject.animations[0]);
+                        zowieThrowingAnimation.setEffectiveTimeScale(1);
+                        zowieThrowingAnimation.setEffectiveWeight(1);
+                        zowieThrowingAnimation.loop = THREE.LoopOnce; // Play once and stop
+                        zowieThrowingAnimation.clampWhenFinished = true; // Hold last frame
+                    }
+                }
+            );
+            
         }
     );
 }
