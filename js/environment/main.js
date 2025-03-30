@@ -31,6 +31,9 @@ var dirtPatchObject = null;
 // Add a global variable to track punchable pumpkins
 var punchablePumpkins = [];
 
+// Make pumpkins array global
+window.pumpkins = []; 
+
 // Initialize all environment elements
 function setupEnvironment() {
     sky = createGradientSky();
@@ -1562,7 +1565,8 @@ function growPumpkin(position) {
             object.userData = {
                 fullyGrown: false,
                 broken: false,
-                isPumpkin: true // Mark explicitly as a pumpkin
+                isPumpkin: true,
+                isGrowing: false // Initialize as not growing
             };
             
             // Calculate initial and final scales
@@ -1604,14 +1608,18 @@ function growPumpkin(position) {
                     const wobble = Math.sin(elapsed * 0.01) * 0.1 * (1 - progress);
                     object.rotation.y = wobble;
                     
+                    // Mark as growing during the animation
+                    object.userData.isGrowing = true; 
+                    
                     requestAnimationFrame(animateGrowth);
                 } else {
                     // Final position and rotation
                     object.position.y = baseYOffset * finalScale * yScaleFactor;
                     object.rotation.y = Math.random() * Math.PI * 2; // Random final rotation
                     
-                    // Mark as fully grown
+                    // Mark as fully grown and NOT growing anymore
                     object.userData.fullyGrown = true;
+                    object.userData.isGrowing = false; 
                     
                     // Add to punchable pumpkins list
                     punchablePumpkins.push(object);
@@ -1661,11 +1669,11 @@ function growPumpkin(position) {
 // Function to find if there's a pumpkin nearby
 function findNearbyPumpkin() {
     if (!zowieCharacter || punchablePumpkins.length === 0) {
-        console.log("No character or no punchable pumpkins available");
+        // Removed console.log("No character or no punchable pumpkins available");
         return null;
     }
     
-    console.log("Checking for nearby pumpkins. Total punchable pumpkins:", punchablePumpkins.length);
+    // Removed console.log("Checking for nearby pumpkins. Total punchable pumpkins:", punchablePumpkins.length);
     const zowiePosition = zowieCharacter.position.clone();
     const punchDistance = 10.0; // Much larger radius - increased from 5.0 to 10.0
     
@@ -1677,7 +1685,7 @@ function findNearbyPumpkin() {
         const pumpkin = punchablePumpkins[i];
         
         const distance = zowiePosition.distanceTo(pumpkin.position);
-        console.log("Distance to punchable pumpkin", i, ":", distance);
+        // Removed console.log("Distance to punchable pumpkin", i, ":", distance);
         
         if (distance < closestDistance) {
             closestDistance = distance;
@@ -1690,7 +1698,8 @@ function findNearbyPumpkin() {
         console.log("Found nearby pumpkin at distance:", closestDistance);
         return closestPumpkin;
     } else if (closestPumpkin) {
-        console.log("Closest pumpkin too far away:", closestDistance);
+        // Removed console.log("Closest pumpkin too far away:", closestDistance);
+        return null;
     }
     
     return null;

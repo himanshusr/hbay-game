@@ -17,15 +17,31 @@ function animate() {
         stars.material.opacity = 0.7 + Math.sin(elapsedTime * 0.5) * 0.3;
     }
     
-
+    // --- Collision Resolution Step (Run FIRST) ---
+    // Resolve any current overlaps for both characters BEFORE processing movement.
+    // Assumes 'pumpkins' array is globally accessible from js/environment/main.js
+    if (typeof pumpkins !== 'undefined') {
+        if (zowieCharacter) {
+            // This function is defined in js/controls.js
+            resolveCharacterPumpkinCollisions(zowieCharacter, pumpkins);
+        }
+        if (yourCharacter) {
+            // This function is defined in js/controls.js
+            resolveCharacterPumpkinCollisions(yourCharacter, pumpkins);
+        }
+    }
+    // --- End Collision Resolution ---
     
     // Update character animations
-    if (yourMixer) yourMixer.update(delta);
-    if (zowieMixer) zowieMixer.update(delta);
+    if (typeof yourMixer !== 'undefined' && yourMixer) yourMixer.update(delta);
+    if (typeof zowieMixer !== 'undefined' && zowieMixer) zowieMixer.update(delta);
     
     // Process input and update movements
     const inputState = processInput();
-    updateCharacterAnimations(inputState);
+    updateZowieAnimation(inputState);
+    updateHSRFollowing();
+    
+    // Update camera
     updateCamera();
     
     // Check for balloon release trigger
@@ -46,7 +62,9 @@ function animate() {
     }
     
     // Render the scene
-    renderer.render(scene, camera);
+    if (typeof renderer !== 'undefined' && typeof scene !== 'undefined' && typeof camera !== 'undefined') {
+        renderer.render(scene, camera);
+    }
 }
 
 // Check if balloons should be released
@@ -97,22 +115,6 @@ window.addEventListener('mousedown', (event) => {
 
 window.addEventListener('mouseup', () => {
     isMouseDown = false;
-});
-
-window.addEventListener('mousemove', (event) => {
-    if (!isMouseDown) return;
-
-    const deltaX = event.clientX - previousMousePosition.x;
-    const deltaY = event.clientY - previousMousePosition.y;
-
-    // Update camera rotation based on mouse movement
-    camera.rotation.y -= deltaX * 0.002;
-    
-    // Limit vertical rotation to prevent camera flipping
-    const newXRotation = camera.rotation.x - deltaY * 0.002;
-    camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, newXRotation));
-
-    previousMousePosition = { x: event.clientX, y: event.clientY };
 });
 
 // Optional: prevent context menu on right-click
