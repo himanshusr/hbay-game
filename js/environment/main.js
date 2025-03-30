@@ -15,6 +15,7 @@ var lastDKeyState = false;
 var pickupCooldown = 0;
 var lastFKeyState = false;
 var lastTKeyState = false;
+var lastPKeyState = false; // Track P key for punching pumpkins
 
 // Add these variables at the top of the file with other variables
 var isCarryingBucket = false;
@@ -26,6 +27,9 @@ var pumpkins = []; // Array to store all grown pumpkins
 
 // Add this to the top with other variables
 var dirtPatchObject = null;
+
+// Add a global variable to track punchable pumpkins
+var punchablePumpkins = [];
 
 // Initialize all environment elements
 function setupEnvironment() {
@@ -235,7 +239,22 @@ function handleSeedInteraction() {
         return;
     }
     
-    // Check current key states
+    // First handle P key for punching - give it priority
+    const pKeyPressed = keys['p'] || keys['P']; 
+    if (pKeyPressed && !lastPKeyState) {
+        console.log("P key pressed!");
+        const nearbyPumpkin = findNearbyPumpkin();
+        if (nearbyPumpkin) {
+            console.log("Found pumpkin to punch!");
+            punchPumpkin(nearbyPumpkin);
+            pickupCooldown = 20; // Cooldown for punching
+        } else {
+            console.log("No pumpkin found to punch");
+        }
+    }
+    lastPKeyState = pKeyPressed;
+    
+    // Then handle other keys
     const cKeyPressed = keys['c'] || keys['C'];
     const dKeyPressed = keys['d'] || keys['D'];
     const fKeyPressed = keys['f'] || keys['F'];
@@ -280,7 +299,7 @@ function handleSeedInteraction() {
         pickupCooldown = 20; // Longer cooldown for throwing animation
     }
     
-    // Update last key states
+    // Update other key states
     lastCKeyState = cKeyPressed;
     lastDKeyState = dKeyPressed;
     lastFKeyState = fKeyPressed;
@@ -414,90 +433,100 @@ function updateEnvironment() {
     
     const zowiePosition = zowieCharacter.position.clone();
     
-    // Calculate if Zowie is near any seed
-    let nearAnySeed = false;
-    let closestDistance = Infinity;
-    
-    // Find the closest seed
-    for (let i = 0; i < seedsArray.length; i++) {
-        const seed = seedsArray[i];
-        const distance = zowiePosition.distanceTo(seed.position);
-        if (distance < closestDistance) {
-            closestDistance = distance;
-        }
+    // Always check for punching first
+    const nearbyPumpkin = findNearbyPumpkin();
+    if (nearbyPumpkin) {
+        displayText('Press P to punch the pumpkin!');
     }
     
-    // Near seeds if closest seed is within pickup distance
-    nearAnySeed = closestDistance <= pickupDistance * 1.2;
-    
-    // Check if near bucket
-    const nearBucket = isNearBucket();
-    
-    // Check if near pond
-    const nearPond = isNearPond();
-    
-    // Update icons visibility
-    if (cIcon && dIcon) {
-        // C icon shown when near seeds or bucket and not carrying anything
-        if (!isCarryingSeed && !isCarryingBucket && (nearAnySeed || nearBucket)) {
-            cIcon.visible = true;
-            dIcon.visible = false;
-            
-            // Position the C icon at the top right of the screen
-            cIcon.position.set(
-                window.innerWidth - 50,
-                50,
-                0
-            );
-            
-            // Display text instruction
-            if (nearBucket) {
-                displayText('Press C to pick up bucket');
-            } else {
-                displayText('Press C to collect seed');
-            }
-        } 
-        // F key instruction when near pond with bucket
-        else if (isCarryingBucket && nearPond && !heldBucket.hasWater) {
-            cIcon.visible = false;
-            dIcon.visible = false;
-            
-            // Display text instruction for filling bucket
-            displayText('Press F to fill bucket with water');
-        }
-        // D icon shown when carrying a seed or bucket
-        else if (isCarryingSeed || isCarryingBucket) {
-            cIcon.visible = false;
-            dIcon.visible = true;
-            
-            // Position the D icon at the top right of the screen
-            dIcon.position.set(
-                window.innerWidth - 50,
-                50,
-                0
-            );
-            
-            // Display text instruction
-            if (isCarryingBucket) {
-                if (heldBucket.hasWater) {
-                    displayText('Press D to drop bucket with water, T to throw water');
-                } else {
-                    displayText('Press D to drop bucket');
-                }
-            } else {
-                displayText('Press D to drop seed');
-            }
-        }
-        // Hide both when not near interactive objects and not carrying
-        else {
-            cIcon.visible = false;
-            dIcon.visible = false;
-            displayText(''); // Clear text
-        }
-    }
-    
-    // Handle key press for seed and bucket interaction
+    // Handle key press for interactions
     handleSeedInteraction();
+    
+    // Rest of the function for other interactions
+    // (Only add other UI displays if not near a pumpkin)
+    if (!nearbyPumpkin) {
+        // Calculate if Zowie is near any seed
+        let nearAnySeed = false;
+        let closestDistance = Infinity;
+        
+        // Find the closest seed
+        for (let i = 0; i < seedsArray.length; i++) {
+            const seed = seedsArray[i];
+            const distance = zowiePosition.distanceTo(seed.position);
+            if (distance < closestDistance) {
+                closestDistance = distance;
+            }
+        }
+        
+        // Near seeds if closest seed is within pickup distance
+        nearAnySeed = closestDistance <= pickupDistance * 1.2;
+        
+        // Check if near bucket
+        const nearBucket = isNearBucket();
+        
+        // Check if near pond
+        const nearPond = isNearPond();
+        
+        // Update icons visibility
+        if (cIcon && dIcon) {
+            // C icon shown when near seeds or bucket and not carrying anything
+            if (!isCarryingSeed && !isCarryingBucket && (nearAnySeed || nearBucket)) {
+                cIcon.visible = true;
+                dIcon.visible = false;
+                
+                // Position the C icon at the top right of the screen
+                cIcon.position.set(
+                    window.innerWidth - 50,
+                    50,
+                    0
+                );
+                
+                // Display text instruction
+                if (nearBucket) {
+                    displayText('Press C to pick up bucket');
+                } else {
+                    displayText('Press C to collect seed');
+                }
+            } 
+            // F key instruction when near pond with bucket
+            else if (isCarryingBucket && nearPond && !heldBucket.hasWater) {
+                cIcon.visible = false;
+                dIcon.visible = false;
+                
+                // Display text instruction for filling bucket
+                displayText('Press F to fill bucket with water');
+            }
+            // D icon shown when carrying a seed or bucket
+            else if (isCarryingSeed || isCarryingBucket) {
+                cIcon.visible = false;
+                dIcon.visible = true;
+                
+                // Position the D icon at the top right of the screen
+                dIcon.position.set(
+                    window.innerWidth - 50,
+                    50,
+                    0
+                );
+                
+                // Display text instruction
+                if (isCarryingBucket) {
+                    if (heldBucket.hasWater) {
+                        displayText('Press D to drop bucket with water, T to throw water');
+                    } else {
+                        displayText('Press D to drop bucket');
+                    }
+                } else {
+                    displayText('Press D to drop seed');
+                }
+            }
+            // Hide both when not near interactive objects and not carrying
+            else {
+                cIcon.visible = false;
+                dIcon.visible = false;
+                displayText(''); // Clear text
+            }
+        }
+    }
     
     // Animate water in the pond
     scene.traverse(function(object) {
@@ -1529,13 +1558,20 @@ function growPumpkin(position) {
             // Position at the seed location
             object.position.copy(position);
             
+            // Set initial user data for tracking state
+            object.userData = {
+                fullyGrown: false,
+                broken: false,
+                isPumpkin: true // Mark explicitly as a pumpkin
+            };
+            
             // Calculate initial and final scales
             const initialScale = 0.001;
-            const finalScale = 0.06 + Math.random() * 0.05; // Bigger pumpkins
+            const finalScale = 0.08 + Math.random() * 0.02; // Smaller pumpkins
             
             // Calculate proper y-offset based on scale to keep bottom at ground level
             // This value might need adjustment based on the specific pumpkin model
-            const baseYOffset = 0.4;  // Base offset for the pumpkin
+            const baseYOffset = 0.5;  // Base offset for the pumpkin
             const yScaleFactor = 100;  // Multiplier that adjusts how much Y increases with scale
             
             // Start small
@@ -1574,7 +1610,37 @@ function growPumpkin(position) {
                     object.position.y = baseYOffset * finalScale * yScaleFactor;
                     object.rotation.y = Math.random() * Math.PI * 2; // Random final rotation
                     
-                    displayText('Your pumpkin has grown!');
+                    // Mark as fully grown
+                    object.userData.fullyGrown = true;
+                    
+                    // Add to punchable pumpkins list
+                    punchablePumpkins.push(object);
+                    
+                    console.log("Pumpkin fully grown and added to punchable list. Total punchable:", punchablePumpkins.length);
+                    
+                    // Add a visual indicator for debugging (floating text)
+                    displayText('Your pumpkin has grown! Press P to punch it!');
+                    
+                    // Add a visible marker above the pumpkin for debugging
+                    const markerGeometry = new THREE.SphereGeometry(0.2, 8, 8);
+                    const markerMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+                    const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+                    marker.position.copy(object.position);
+                    marker.position.y += 2.0; // Position above pumpkin
+                    scene.add(marker);
+                    
+                    // Make the marker blink
+                    const blinkMarker = () => {
+                        if (!object.parent) {
+                            // Pumpkin was removed, remove marker too
+                            scene.remove(marker);
+                            return;
+                        }
+                        
+                        marker.visible = !marker.visible;
+                        setTimeout(blinkMarker, 500);
+                    };
+                    blinkMarker();
                 }
             };
             
@@ -1592,48 +1658,257 @@ function growPumpkin(position) {
     );
 }
 
-// Update the createDirtPatch function to return the correct position
-function createDirtPatch() {
-    const dirtPatchGroup = new THREE.Group();
+// Function to find if there's a pumpkin nearby
+function findNearbyPumpkin() {
+    if (!zowieCharacter || punchablePumpkins.length === 0) {
+        console.log("No character or no punchable pumpkins available");
+        return null;
+    }
     
-    // Create the base of the dirt patch
-    const dirtGeometry = new THREE.CircleGeometry(2, 32);
-    const dirtMaterial = new THREE.MeshStandardMaterial({
-        color: 0x5d4037, // Brown color
-        roughness: 0.9,
-        metalness: 0.1
-    });
-    const dirtPatch = new THREE.Mesh(dirtGeometry, dirtMaterial);
-    dirtPatch.rotation.x = -Math.PI / 2; // Rotate to lie flat
-    dirtPatch.position.y = 0.01; // Slightly above ground to avoid z-fighting
-    dirtPatchGroup.add(dirtPatch);
+    console.log("Checking for nearby pumpkins. Total punchable pumpkins:", punchablePumpkins.length);
+    const zowiePosition = zowieCharacter.position.clone();
+    const punchDistance = 10.0; // Much larger radius - increased from 5.0 to 10.0
     
-    // Add a subtle bump to the dirt
-    const bumpGeometry = new THREE.CircleGeometry(1.8, 32);
-    const bumpMaterial = new THREE.MeshStandardMaterial({
-        color: 0x3e2723, // Darker brown
-        roughness: 1.0,
-        metalness: 0.0
-    });
-    const bump = new THREE.Mesh(bumpGeometry, bumpMaterial);
-    bump.rotation.x = -Math.PI / 2;
-    bump.position.y = 0.05;
-    dirtPatchGroup.add(bump);
+    // Find the closest pumpkin
+    let closestPumpkin = null;
+    let closestDistance = Infinity;
     
-    // Position the dirt patch
-    const dirtPatchPosition = new THREE.Vector3(10, 0, -8);
-    dirtPatchGroup.position.copy(dirtPatchPosition);
+    for (let i = 0; i < punchablePumpkins.length; i++) {
+        const pumpkin = punchablePumpkins[i];
+        
+        const distance = zowiePosition.distanceTo(pumpkin.position);
+        console.log("Distance to punchable pumpkin", i, ":", distance);
+        
+        if (distance < closestDistance) {
+            closestDistance = distance;
+            closestPumpkin = pumpkin;
+        }
+    }
     
-    // Store the position for reference
-    dirtPatchGroup.userData.position = dirtPatchPosition;
+    // Return the closest pumpkin if it's within range
+    if (closestDistance <= punchDistance) {
+        console.log("Found nearby pumpkin at distance:", closestDistance);
+        return closestPumpkin;
+    } else if (closestPumpkin) {
+        console.log("Closest pumpkin too far away:", closestDistance);
+    }
     
-    // Debug: Add a visible marker above the dirt patch
-    const markerGeometry = new THREE.SphereGeometry(0.2, 8, 8);
-    const markerMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-    const marker = new THREE.Mesh(markerGeometry, markerMaterial);
-    marker.position.y = 2; // Position above the dirt patch
-    marker.visible = false; // Only make visible for debugging if needed
-    dirtPatchGroup.add(marker);
+    return null;
+}
+
+// Function to punch a pumpkin
+function punchPumpkin(pumpkin) {
+    if (!pumpkin) {
+        console.log("No pumpkin to punch");
+        return;
+    }
     
-    return dirtPatchGroup;
+    console.log("Punching pumpkin!");
+    displayText('Smashing the pumpkin!');
+    
+    // Remove from punchable pumpkins list
+    const punchableIndex = punchablePumpkins.indexOf(pumpkin);
+    if (punchableIndex > -1) {
+        punchablePumpkins.splice(punchableIndex, 1);
+        console.log("Pumpkin removed from punchable list. Remaining:", punchablePumpkins.length);
+    }
+    
+    // Store pumpkin position and rotation for the broken version
+    const pumpkinPosition = pumpkin.position.clone();
+    const pumpkinRotation = pumpkin.rotation.clone();
+    const pumpkinScale = pumpkin.scale.clone();
+    
+    // Play punching animation if available
+    if (zowieThrowingAnimation) {
+        // Stop current animation and play throwing/punching animation
+        if (currentZowieAnimation === 'idle' && zowieIdleAnimation) {
+            zowieIdleAnimation.stop();
+        } else if (currentZowieAnimation === 'walk' && zowieWalkAnimation) {
+            zowieWalkAnimation.stop();
+        }
+        
+        zowieThrowingAnimation.reset();
+        zowieThrowingAnimation.play();
+        
+        // Store previous animation to return to later
+        const previousAnimation = currentZowieAnimation;
+        currentZowieAnimation = 'throwing'; // Reuse throwing animation for punching
+        
+        console.log("Playing punch animation");
+        
+        // Return to previous animation after punch is complete
+        const animationDuration = 1200; // Adjust timing as needed
+        setTimeout(() => {
+            if (zowieThrowingAnimation) zowieThrowingAnimation.stop();
+            
+            if (previousAnimation === 'idle' && zowieIdleAnimation) {
+                zowieIdleAnimation.reset();
+                zowieIdleAnimation.play();
+                currentZowieAnimation = 'idle';
+            } else if (previousAnimation === 'walk' && zowieWalkAnimation) {
+                zowieWalkAnimation.reset();
+                zowieWalkAnimation.play();
+                currentZowieAnimation = 'walk';
+            }
+        }, animationDuration);
+    }
+    
+    // Wait for the punch animation to reach the impact point
+    setTimeout(() => {
+        // Load broken pumpkin model
+        const fbxLoader = new THREE.FBXLoader();
+        fbxLoader.load('assets/models/broken_pumpkin.fbx', 
+            // Success callback
+            (brokenPumpkin) => {
+                console.log("Broken pumpkin model loaded successfully!");
+                
+                brokenPumpkin.traverse(function(child) {
+                    if (child.isMesh) {
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                    }
+                });
+                
+                // Position broken pumpkin at the same place as the original
+                brokenPumpkin.position.copy(pumpkinPosition);
+                brokenPumpkin.rotation.copy(pumpkinRotation);
+                brokenPumpkin.scale.copy(pumpkinScale);
+                
+                // Remove original pumpkin
+                scene.remove(pumpkin);
+                const index = pumpkins.indexOf(pumpkin);
+                if (index > -1) {
+                    pumpkins.splice(index, 1);
+                }
+                
+                // Add broken pumpkin to scene
+                scene.add(brokenPumpkin);
+                
+                // Add broken pumpkin to the array (optional)
+                brokenPumpkin.userData = { broken: true, isPumpkin: true };
+                pumpkins.push(brokenPumpkin);
+                
+                // Create smashing effect with particles
+                createPumpkinSmashEffect(pumpkinPosition);
+            },
+            // Progress callback
+            (xhr) => {
+                console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+            },
+            // Error callback
+            (error) => {
+                console.error('Error loading broken pumpkin model:', error);
+                // If model fails to load, just remove the original pumpkin
+                scene.remove(pumpkin);
+                const index = pumpkins.indexOf(pumpkin);
+                if (index > -1) {
+                    pumpkins.splice(index, 1);
+                }
+            }
+        );
+    }, 500); // Time to wait for punch animation to reach impact point
+}
+
+// Function to create pumpkin smash particle effect
+function createPumpkinSmashEffect(position) {
+    const particleCount = 40;
+    const particles = new THREE.Group();
+    
+    // Create pumpkin chunk particles
+    for (let i = 0; i < particleCount; i++) {
+        // Use random shapes for pumpkin chunks
+        const geometry = i % 3 === 0 
+            ? new THREE.TetrahedronGeometry(0.1 + Math.random() * 0.1)
+            : (i % 3 === 1
+                ? new THREE.BoxGeometry(0.1 + Math.random() * 0.1, 0.1 + Math.random() * 0.1, 0.1 + Math.random() * 0.1)
+                : new THREE.SphereGeometry(0.1 + Math.random() * 0.05, 8, 8)
+            );
+        
+        const material = new THREE.MeshStandardMaterial({
+            color: i % 5 === 0 ? 0x2E8B57 : 0xFFA500, // Mix of green and orange
+            roughness: 0.7,
+            metalness: 0.2
+        });
+        
+        const chunk = new THREE.Mesh(geometry, material);
+        
+        // Position at impact point
+        chunk.position.copy(position);
+        // Add random offsets, but more upward
+        chunk.position.x += (Math.random() - 0.5) * 0.2;
+        chunk.position.y += Math.random() * 0.5 + 0.3; // More upward
+        chunk.position.z += (Math.random() - 0.5) * 0.2;
+        
+        // Random velocity for explosion effect
+        const velocity = new THREE.Vector3(
+            (Math.random() - 0.5) * 0.08,
+            Math.random() * 0.2 + 0.05, // More upward
+            (Math.random() - 0.5) * 0.08
+        );
+        
+        chunk.userData.velocity = velocity;
+        chunk.userData.rotationSpeed = new THREE.Vector3(
+            Math.random() * 0.2,
+            Math.random() * 0.2,
+            Math.random() * 0.2
+        );
+        chunk.userData.lifetime = 1.5 + Math.random() * 1.0; // 1.5-2.5 seconds
+        
+        particles.add(chunk);
+    }
+    
+    scene.add(particles);
+    
+    // Animate the particles
+    const animateParticles = () => {
+        let allDone = true;
+        
+        particles.children.forEach(chunk => {
+            // Apply velocity and gravity
+            chunk.position.add(chunk.userData.velocity);
+            chunk.userData.velocity.y -= 0.01; // Gravity
+            
+            // Apply rotation
+            chunk.rotation.x += chunk.userData.rotationSpeed.x;
+            chunk.rotation.y += chunk.userData.rotationSpeed.y;
+            chunk.rotation.z += chunk.userData.rotationSpeed.z;
+            
+            // Check for ground collision
+            if (chunk.position.y < 0.05) {
+                chunk.position.y = 0.05;
+                chunk.userData.velocity.y *= -0.3; // Bounce with damping
+                chunk.userData.velocity.x *= 0.8; // Friction
+                chunk.userData.velocity.z *= 0.8; // Friction
+                
+                // Reduce rotation speed after bounce
+                chunk.userData.rotationSpeed.multiplyScalar(0.8);
+            }
+            
+            // Reduce lifetime
+            chunk.userData.lifetime -= 0.016; // Approx 1 frame at 60fps
+            
+            // Scale down and fade out near end of lifetime
+            if (chunk.userData.lifetime < 0.5) {
+                const scale = Math.max(0.01, chunk.userData.lifetime / 0.5);
+                chunk.scale.set(scale, scale, scale);
+            }
+            
+            if (chunk.userData.lifetime > 0) {
+                allDone = false;
+            }
+        });
+        
+        // Continue animation or clean up
+        if (!allDone) {
+            requestAnimationFrame(animateParticles);
+        } else {
+            scene.remove(particles);
+            particles.traverse(obj => {
+                if (obj.geometry) obj.geometry.dispose();
+                if (obj.material) obj.material.dispose();
+            });
+        }
+    };
+    
+    animateParticles();
 }
