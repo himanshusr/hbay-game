@@ -458,94 +458,142 @@ function dropSeed() {
 }
 
 // *** Add pickupKey function ***
+// function pickupKey() {
+//     if (!collectibleKey || !collectibleKey.parent || !zowieCharacter) return; 
+
+//     console.log("Picking up key");
+    
+//     heldKey = collectibleKey; 
+    
+//     // *** Store the original scale before removing from scene ***
+//     if (!heldKey.userData.originalScale) { // Store only if not already stored
+//         heldKey.userData.originalScale = heldKey.scale.clone();
+//         console.log("Stored original key scale:", heldKey.userData.originalScale);
+//     }
+    
+//     scene.remove(heldKey); 
+    
+//     let handBone = null;
+//     zowieCharacter.traverse((child) => {
+//         // Use a more general check for the right hand bone
+//         if (child.isBone && child.name.toLowerCase().includes('righthand')) { 
+//             handBone = child;
+//             console.log("Found hand bone:", handBone.name); // Log the actual name found
+//         }
+//     });
+
+//     if (handBone) {
+//         console.log("Attaching key to hand bone:", handBone.name);
+//         handBone.add(heldKey); 
+        
+//         // Try these new position values to place the key directly on the hand
+//         heldKey.position.set(0, 0, 0); 
+        
+//         // You may also need to adjust the rotation
+//         heldKey.rotation.set(0, 0, 0); 
+        
+//         // You might need to adjust the scale as well
+//         const heldScale = 0.001; // Try a smaller scale
+//         heldKey.scale.set(heldScale, heldScale, heldScale);
+//         console.log("Set held key scale:", heldKey.scale);
+//     } else {
+//         console.error("Could not find hand bone to attach key!");
+//         // If attachment fails, restore original scale if we stored it
+//         if (heldKey.userData.originalScale) {
+//              heldKey.scale.copy(heldKey.userData.originalScale);
+//         }
+//         // Re-add to scene if attachment fails
+//         scene.add(heldKey); // Add it back to the scene at its last position
+//         heldKey = null; // Don't consider it held
+//         // collectibleKey remains the original object in the scene
+//         isCarryingKey = false; // Ensure state reflects failure
+//         return; // Exit the function early
+//     }
+
+//     // Only nullify collectibleKey and set isCarryingKey if attachment succeeded
+//     collectibleKey = null; 
+//     isCarryingKey = true; 
+
+//     displayText('Key collected!'); 
+// }
 function pickupKey() {
-    if (!collectibleKey || !collectibleKey.parent || !zowieCharacter) return; // Check if key exists, is in scene, and Zowie exists
+    if (!collectibleKey || !collectibleKey.parent || !zowieCharacter) return; 
 
     console.log("Picking up key");
     
-    // Store the key object
     heldKey = collectibleKey; 
     
-    // Remove key from the main scene
+    if (!heldKey.userData.originalScale) {
+        heldKey.userData.originalScale = heldKey.scale.clone();
+        console.log("Stored original key scale:", heldKey.userData.originalScale);
+    }
+    
     scene.remove(heldKey); 
     
-    // Find the hand bone (REPLACE 'mixamorigRightHand' if needed)
-    let handBone = null;
-    zowieCharacter.traverse((child) => {
-        if (child.isBone && child.name === 'mixamorigRightHand') { // Or 'mixamorigLeftHand', etc.
-            handBone = child;
-        }
-    });
+    // Instead of finding the hand bone, attach directly to Zowie
+    zowieCharacter.add(heldKey);
+    
+    // Position the key on top of Zowie's head
+    // Adjust these values based on your character's height and scale
+    heldKey.position.set(0, 1.8, 0); // Y value controls height above head
+    
+    // Set rotation to make key look good on head
+    heldKey.rotation.set(0, Math.PI/4, 0); // Slight angle for visibility
+    
+    // Adjust scale to be appropriate for head placement
+    const heldScale = 0.01; // Adjust as needed
+    heldKey.scale.set(heldScale, heldScale, heldScale);
+    console.log("Set held key scale:", heldKey.scale);
 
-    if (handBone) {
-        console.log("Attaching key to hand bone:", handBone.name);
-        // Attach key to the hand
-        handBone.add(heldKey); 
-        
-        // Reset key's position and rotation relative to the hand
-        // --- ADJUST THESE VALUES AS NEEDED ---
-        heldKey.position.set(0.1, 0.1, 0); // Example position offset
-        heldKey.rotation.set(Math.PI / 2, 0, 0); // Example rotation offset
-        // --- ADJUST THESE VALUES AS NEEDED ---
-
-        // Stop the independent bobbing/rotating animation
-        // (We might need a more robust way to stop this if the anonymous function causes issues)
-        // For now, we assume removing it from the scene stops the requestAnimationFrame loop.
-        
-    } else {
-        console.error("Could not find hand bone to attach key!");
-        // If hand bone not found, just remove from scene as before
-        heldKey = null; // Don't hold it if we can't attach it
-        scene.remove(collectibleKey); // Ensure it's removed if attachment failed
-    }
-
-    collectibleKey = null; // It's no longer collectible from the world
-    isCarryingKey = true; // Zowie is now carrying it
-
+    collectibleKey = null; 
+    isCarryingKey = true; 
     displayText('Key collected!'); 
 }
-
 // *** Add dropKey function ***
 function dropKey() {
-    if (!isCarryingKey || !heldKey || !zowieCharacter) return; // Check if carrying a key and Zowie exists
+    if (!isCarryingKey || !heldKey || !zowieCharacter) return; 
 
     console.log("Dropping key");
 
-    // Find the hand bone it was attached to
     let handBone = null;
     zowieCharacter.traverse((child) => {
-        if (child.isBone && child.name === 'mixamorigRightHand') { // Use the same bone name as in pickupKey
+        if (child.isBone && child.name === 'mixamorigRightHand') { 
             handBone = child;
         }
     });
 
+    // *** Restore original scale BEFORE detaching/re-adding ***
+    if (heldKey.userData.originalScale) {
+        console.log("Restoring original key scale:", heldKey.userData.originalScale);
+        heldKey.scale.copy(heldKey.userData.originalScale);
+    } else {
+        // Fallback if original scale wasn't stored (shouldn't happen ideally)
+        const defaultScale = 0.05; // The scale set when the key was first created
+        heldKey.scale.set(defaultScale, defaultScale, defaultScale);
+        console.warn("Original key scale not found, resetting to default.");
+    }
+
     if (handBone) {
-        // Detach key from hand
         handBone.remove(heldKey); 
     } else {
         console.error("Could not find hand bone to detach key from!");
-        // If we can't find the bone, we can't reliably detach, but proceed anyway.
     }
 
-    // Add the key back to the main scene
     scene.add(heldKey);
 
     // Position the key on the ground in front of Zowie
     const dropPosition = zowieCharacter.position.clone();
     const forward = new THREE.Vector3();
-    zowieCharacter.getWorldDirection(forward); // Get Zowie's forward direction
-    dropPosition.add(forward.multiplyScalar(1.0)); // Place it 1 unit in front
-    dropPosition.y = 0.1; // Place it slightly above the ground
+    zowieCharacter.getWorldDirection(forward); 
+    dropPosition.add(forward.multiplyScalar(1.0)); 
+    dropPosition.y = 0.1; 
     
     heldKey.position.copy(dropPosition);
-    // Reset rotation or give it a default upright rotation
     heldKey.rotation.set(0, Math.random() * Math.PI * 2, 0); 
 
-    // Make it collectible again
     collectibleKey = heldKey; 
     
     // Restart the bobbing/rotating animation
-    // We need to re-implement the animation start here
     (function animateKeyCompletely() {
         if (!collectibleKey || !collectibleKey.parent) return; // Stop if picked up again or removed
         
@@ -559,8 +607,7 @@ function dropKey() {
     })();
     console.log("Restarted key bobbing animation.");
 
-
-    heldKey = null; // Zowie is no longer holding it
+    heldKey = null; 
     isCarryingKey = false;
 
     displayText('Key dropped.'); 
