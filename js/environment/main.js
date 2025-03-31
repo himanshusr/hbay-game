@@ -1766,45 +1766,113 @@ function punchPumpkin(pumpkin) {
     setTimeout(() => {
         // Load broken pumpkin model
         const fbxLoader = new THREE.FBXLoader();
-        fbxLoader.load('assets/models/broken_pumpkin.fbx', 
-            // Success callback
+        fbxLoader.load('assets/models/broken_pumpkin.fbx',
+            // Success callback for broken pumpkin
             (brokenPumpkin) => {
                 console.log("Broken pumpkin model loaded successfully!");
-                
+
                 brokenPumpkin.traverse(function(child) {
                     if (child.isMesh) {
                         child.castShadow = true;
                         child.receiveShadow = true;
                     }
                 });
-                
+
                 // Position broken pumpkin at the same place as the original
                 brokenPumpkin.position.copy(pumpkinPosition);
                 brokenPumpkin.rotation.copy(pumpkinRotation);
                 brokenPumpkin.scale.copy(pumpkinScale);
-                
+
+                // *** ADD HEIGHT ADJUSTMENT HERE ***
+                // Example: Lower the broken pumpkin slightly
+                // brokenPumpkin.position.y -= 0.1;
+                // Or set a specific height:
+                brokenPumpkin.position.y = 2.5; // Adjust this value as needed
+
                 // Remove original pumpkin
                 scene.remove(pumpkin);
                 const index = pumpkins.indexOf(pumpkin);
                 if (index > -1) {
                     pumpkins.splice(index, 1);
                 }
-                
+
                 // Add broken pumpkin to scene
                 scene.add(brokenPumpkin);
-                
+
                 // Add broken pumpkin to the array (optional)
                 brokenPumpkin.userData = { broken: true, isPumpkin: true };
                 pumpkins.push(brokenPumpkin);
-                
+
                 // Create smashing effect with particles
                 createPumpkinSmashEffect(pumpkinPosition);
+
+                // --- Load the key model ---
+                const keyLoader = new THREE.FBXLoader();
+                keyLoader.load('assets/models/door_key.fbx',
+                    // Success callback for key
+                    (keyObject) => {
+                        console.log("Key model loaded successfully!");
+
+                        keyObject.traverse(function(child) {
+                            if (child.isMesh) {
+                                child.castShadow = true;
+                                // Keys might not need to receive shadows, but can be enabled if needed
+                                // child.receiveShadow = true;
+                            }
+                        });
+
+                        // Scale the key - adjust this value as needed
+                        const keyScale = 0.05; // Example scale, make it smaller or larger
+                        keyObject.scale.set(keyScale, keyScale, keyScale);
+
+                        // Position the key above the broken pumpkin
+                        keyObject.position.copy(brokenPumpkin.position);
+                        keyObject.position.y += 0.5; // Adjust this offset to position it higher or lower
+
+                        // Optional: Add slight random rotation
+                        keyObject.rotation.y = Math.random() * Math.PI * 2;
+
+                        // Add the key to the scene
+                        scene.add(keyObject);
+
+                        // COMPLETELY SELF-CONTAINED ROTATION AND BOBBING
+                        // This doesn't rely on any external arrays or animation loops
+                        (function animateKeyCompletely() {
+                            // If key is removed from scene, stop animation
+                            if (!keyObject.parent) return;
+                            
+                            // Rotate the key
+                            keyObject.rotation.y += 0.02;
+                            
+                            // Bob the key up and down
+                            const time = Date.now() * 0.002;
+                            keyObject.position.y = brokenPumpkin.position.y + 0.5 + Math.sin(time) * 0.1;
+                            
+                            // Continue animation
+                            requestAnimationFrame(animateKeyCompletely);
+                        })();
+
+                        // Log for debugging
+                        console.log("Self-contained key animation started");
+
+                    },
+                    // Progress callback for key
+                    (xhr) => {
+                        console.log('Key: ' + (xhr.loaded / xhr.total * 100) + '% loaded');
+                    },
+                    // Error callback for key
+                    (error) => {
+                        console.error('Error loading key model:', error);
+                    }
+                );
+                // --- End loading the key model ---
+
             },
-            // Progress callback
+            // Progress callback for broken pumpkin
             (xhr) => {
-                console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+                console.log('Broken Pumpkin: ' + (xhr.loaded / xhr.total * 100) + '% loaded');
             },
-            // Error callback
+            // Error callback for broken pumpkin
             (error) => {
                 console.error('Error loading broken pumpkin model:', error);
                 // If model fails to load, just remove the original pumpkin

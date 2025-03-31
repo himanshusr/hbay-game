@@ -7,6 +7,8 @@ let previousMousePosition = { x: 0, y: 0 };
 
 // Main animation loop
 function animate() {
+    // Log 1: Check if animate is running
+    // console.log("Animate loop running - Time:", Date.now()); 
     requestAnimationFrame(animate);
     
     const delta = clock.getDelta();
@@ -49,7 +51,31 @@ function animate() {
     
     // Update environment
     updateEnvironment();
-    
+
+    // --- START: Rotate Keys ---
+    // Log 2: Check if rotatingKeys is accessible and what it contains
+    // console.log("Checking rotatingKeys in animate:", rotatingKeys); 
+
+    if (typeof rotatingKeys !== 'undefined' && Array.isArray(rotatingKeys)) {
+        const rotationSpeed = 0.02; 
+        
+        for (let i = rotatingKeys.length - 1; i >= 0; i--) {
+            const key = rotatingKeys[i];
+            if (key && key.parent === scene) { 
+                key.rotation.y += rotationSpeed;
+                // Log 3: Confirm rotation is being applied
+                // console.log("Rotating key:", key.uuid, "New Y rotation:", key.rotation.y); 
+            } else {
+                console.log("Removing key from rotatingKeys array (not in scene?)."); 
+                rotatingKeys.splice(i, 1);
+            }
+        }
+    } else {
+        // Log 4: Indicate if rotatingKeys is not found or not an array
+        // console.log("rotatingKeys is undefined or not an array in animate.");
+    }
+    // --- END: Rotate Keys ---
+
     // Update camera info display
     updateCameraInfo();
 
@@ -61,7 +87,7 @@ function animate() {
         });
     }
     
-    // Render the scene
+    // Render the scene - Make sure this is AFTER the rotation code
     if (typeof renderer !== 'undefined' && typeof scene !== 'undefined' && typeof camera !== 'undefined') {
         renderer.render(scene, camera);
     }
