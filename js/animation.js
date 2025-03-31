@@ -24,12 +24,20 @@ function animate() {
     // Assumes 'pumpkins' array is globally accessible from js/environment/main.js
     if (typeof pumpkins !== 'undefined') {
         if (zowieCharacter) {
-            // This function is defined in js/controls.js
-            resolveCharacterPumpkinCollisions(zowieCharacter, pumpkins);
+            // Check if the function exists before calling it
+            if (typeof resolveCharacterPumpkinCollisions === 'function') {
+                resolveCharacterPumpkinCollisions(zowieCharacter, pumpkins);
+            } else {
+                console.warn('resolveCharacterPumpkinCollisions function is not defined');
+            }
         }
         if (yourCharacter) {
-            // This function is defined in js/controls.js
-            resolveCharacterPumpkinCollisions(yourCharacter, pumpkins);
+            // Check if the function exists before calling it
+            if (typeof resolveCharacterPumpkinCollisions === 'function') {
+                resolveCharacterPumpkinCollisions(yourCharacter, pumpkins);
+            } else {
+                console.warn('resolveCharacterPumpkinCollisions function is not defined');
+            }
         }
     }
     // --- End Collision Resolution ---
