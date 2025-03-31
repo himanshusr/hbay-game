@@ -774,18 +774,34 @@ function unlockDoor() {
         isCarryingKey = false;
         heldKey = null; // Important to clear the reference
 
-        displayText('Door unlocked!'); // Update UI text
-
-        // --- Placeholder for future actions ---
-        // Example: Trigger an animation on the building
-        // if (typeof openBuildingDoor === 'function') {
-        //     openBuildingDoor();
-        // }
-        // Example: Play a sound
-        // if (typeof playSound === 'function') {
-        //     playSound('unlock');
-        // }
-        // ------------------------------------
+        displayText('Door unlocked! Happy Birthday!'); // Update UI text
+        
+        // Trigger effects directly
+        console.log("Triggering birthday effects");
+        
+        // Create confetti effect
+        if (typeof createConfettiEffect === 'function') {
+            createConfettiEffect();
+        } else {
+            console.error("createConfettiEffect function not found");
+        }
+        
+        // Show ONLY the Ghibli-style birthday message with flowers
+        if (typeof showGhibliBirthdayMessage === 'function') {
+            showGhibliBirthdayMessage();
+        } else {
+            console.error("showGhibliBirthdayMessage function not found");
+        }
+        
+        // DON'T update the persistent birthday message in the DOM
+        // Remove these lines to avoid the persistent message
+        /*
+        const birthdayMessage = document.getElementById('birthday-message');
+        if (birthdayMessage) {
+            birthdayMessage.textContent = 'Belated Happy Birthday Zowie! You\'re the best!';
+            birthdayMessage.style.opacity = '1';
+        }
+        */
 
     } else {
         console.error("Unlock failed: Held key is not attached to Zowie as expected.", heldKey.parent);
