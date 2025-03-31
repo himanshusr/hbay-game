@@ -1715,6 +1715,12 @@ function punchPumpkin(pumpkin) {
     console.log("Punching pumpkin!");
     displayText('Smashing the pumpkin!');
     
+    // Drop the bucket if Zowie is holding one
+    if (isCarryingBucket && heldBucket) {
+        console.log("Dropping bucket to punch pumpkin");
+        dropBucket(); // Call the existing dropBucket function
+    }
+    
     // Remove from punchable pumpkins list
     const punchableIndex = punchablePumpkins.indexOf(pumpkin);
     if (punchableIndex > -1) {
