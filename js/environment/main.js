@@ -730,6 +730,7 @@ function updateEnvironment() {
     // This needs to run *after* determining the text for the current frame,
     // but *before* the next frame, so it reacts to the state shown.
     handleSeedInteraction();
+    
 
 
     // Animate water in the pond

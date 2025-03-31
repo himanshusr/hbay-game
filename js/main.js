@@ -43,7 +43,7 @@ window.createConfettiEffect = function() {
     scene.add(confettiGroup);
     
     // Create confetti particles
-    for (let i = 0; i < particleCount; i++) {
+    for (let i = 0; i < 5000; i++) {
         // More variety in confetti shapes
         let geometry;
         const shapeType = i % 5; // Increased shape variety
@@ -158,9 +158,9 @@ window.createConfettiEffect = function() {
     animateConfetti();
 };
 
-// Create an ultra-cute Ghibli-style birthday message with enhanced styling
+// Create a minimalistic yet cool Ghibli-style birthday message
 window.showGhibliBirthdayMessage = function() {
-    console.log("Showing enhanced Ghibli birthday message");
+    console.log("Showing minimalistic Ghibli birthday message");
     
     // Create a div for the message
     const messageContainer = document.createElement('div');
@@ -171,106 +171,104 @@ window.showGhibliBirthdayMessage = function() {
     messageContainer.style.transform = 'translate(-50%, -50%)';
     messageContainer.style.textAlign = 'center';
     messageContainer.style.zIndex = '1000';
+    messageContainer.style.width = '500px';
+    messageContainer.style.maxWidth = '90vw';
     
-    // Try to load a cuter font first, with fallbacks
-    messageContainer.style.fontFamily = '"Mochiy Pop One", "Bubblegum Sans", "Comic Sans MS", cursive, sans-serif';
+    // Keep the same font
+    messageContainer.style.fontFamily = '"Mochiy Pop One", sans-serif';
     
-    // Add Google Font for cute Japanese-inspired font (Mochiy Pop One)
+    // Add Google Font
     const fontLink = document.createElement('link');
     fontLink.rel = 'stylesheet';
-    fontLink.href = 'https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=Bubblegum+Sans&display=swap';
+    fontLink.href = 'https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&display=swap';
     document.head.appendChild(fontLink);
     
-    // Add white border and enhanced styling
-    messageContainer.style.color = '#ff6699'; // Brighter pink color
-    messageContainer.style.textShadow = '0 0 10px #fff, 0 0 15px #ffccff, 0 0 20px #ff99cc';
-    messageContainer.style.border = '6px solid white'; // Add white border
-    messageContainer.style.borderRadius = '25px'; // Rounded corners
-    messageContainer.style.boxShadow = '0 0 15px white, 0 0 25px #ffccff'; // Glowing border
-    messageContainer.style.padding = '15px 30px'; // Add some padding
-    messageContainer.style.backgroundColor = 'rgba(255, 255, 255, 0.15)'; // Very slight white background
-    messageContainer.style.backdropFilter = 'blur(2px)'; // Subtle blur effect
+    // Clean, minimalistic styling with warm Ghibli peach tones
+    messageContainer.style.color = '#e08e60';
+    messageContainer.style.textShadow = '0 0 8px rgba(255, 255, 255, 0.8)';
+    messageContainer.style.border = '3px solid rgba(255, 255, 255, 0.7)';
+    messageContainer.style.borderRadius = '12px';
+    messageContainer.style.boxShadow = '0 0 20px rgba(255, 219, 187, 0.6)';
+    messageContainer.style.padding = '30px';
+    messageContainer.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+    messageContainer.style.backdropFilter = 'blur(1px)';
     messageContainer.style.opacity = '0';
-    messageContainer.style.transition = 'opacity 2s';
+    messageContainer.style.transition = 'opacity 1.5s';
     
-    // Create more decorative top elements
-    const topDecoration = document.createElement('div');
-    topDecoration.style.fontSize = '38px';
-    topDecoration.style.marginBottom = '15px';
-    topDecoration.style.color = '#ffaacc';
-    topDecoration.innerHTML = '✿ ❀ ✿ ❀ ✿ ❀ ✿';
-    topDecoration.style.textShadow = '0 0 8px #ffffff';
+    // Create a subtle Ghibli-inspired landscape background
+    const backgroundScene = document.createElement('div');
+    backgroundScene.style.position = 'absolute';
+    backgroundScene.style.bottom = '0';
+    backgroundScene.style.left = '0';
+    backgroundScene.style.width = '100%';
+    backgroundScene.style.height = '30%';
+    backgroundScene.style.opacity = '0.4';
+    backgroundScene.style.zIndex = '-1';
+    backgroundScene.style.fontSize = '18px';
+    backgroundScene.style.textAlign = 'center';
+    backgroundScene.style.pointerEvents = 'none';
     
-    // Add tiny animated totoro-like spirits
-    const spirits = document.createElement('div');
-    spirits.style.fontSize = '32px';
-    spirits.style.marginBottom = '10px';
-    spirits.innerHTML = '⚪ ⚫ ⚪';
-    spirits.style.animation = 'bounce 2s infinite alternate';
-    
-    // Create main message with enhanced styling
+    // Simple, elegant main message with darker color
     const mainMessage = document.createElement('div');
-    mainMessage.style.fontSize = '46px';
-    mainMessage.style.marginBottom = '15px';
+    mainMessage.style.fontSize = '52px';
     mainMessage.style.fontWeight = 'bold';
+    mainMessage.style.marginBottom = '20px';
     mainMessage.style.letterSpacing = '1px';
-    mainMessage.textContent = 'Belated Happy Birthday Zowie!';
-    mainMessage.style.animation = 'glow 2s infinite alternate';
+    mainMessage.style.color = '#c27442'; // Darker, more solid version of the peach
+    mainMessage.textContent = 'Happy Birthday Zowie';
+    mainMessage.style.animation = 'pulse 3s infinite alternate';
     
-    // Create secondary message
-    const secondaryMessage = document.createElement('div');
-    secondaryMessage.style.fontSize = '32px';
-    secondaryMessage.style.marginBottom = '5px';
-    secondaryMessage.textContent = 'You\'re the best!';
+    // Add Ghibli scene elements in a minimalistic way
+    const sceneTop = document.createElement('div');
+    sceneTop.style.fontSize = '20px';
+    sceneTop.style.marginBottom = '15px';
+    sceneTop.style.opacity = '0.8';
+    sceneTop.style.color = '#d9916b';
+    sceneTop.innerHTML = '✦ ✧ ✦ ⋆ ✧ ⋆ ✦'; // Stars in the sky
     
-    // Add sparkles
-    const sparkles = document.createElement('div');
-    sparkles.style.fontSize = '30px';
-    sparkles.style.marginBottom = '15px';
-    sparkles.innerHTML = '✨ ✨ ✨';
-    sparkles.style.animation = 'sparkle 1.5s infinite alternate';
+    const sceneMiddle = document.createElement('div');
+    sceneMiddle.style.fontSize = '16px';
+    sceneMiddle.style.margin = '25px auto 15px';
+    sceneMiddle.style.color = '#d9916b';
+    sceneMiddle.style.letterSpacing = '3px';
+    sceneMiddle.innerHTML = '🏠 &nbsp; 🌲 &nbsp; 🎃 &nbsp; 🌲 &nbsp; 🏠'; // Houses, trees, pumpkin
     
-    // Bottom decoration
-    const bottomDecoration = document.createElement('div');
-    bottomDecoration.style.fontSize = '38px';
-    bottomDecoration.style.marginTop = '10px';
-    bottomDecoration.style.color = '#ffaacc';
-    bottomDecoration.innerHTML = '✿ ❀ ✿ ❀ ✿ ❀ ✿';
-    bottomDecoration.style.textShadow = '0 0 8px #ffffff';
-    
-    // Add style for animations
+    // Add style for subtle animations
     const styleElement = document.createElement('style');
     styleElement.textContent = `
         @keyframes float {
             0% { transform: translate(-50%, -50%); }
-            50% { transform: translate(-50%, -53%); }
-            100% { transform: translate(-50%, -50%); }
+            100% { transform: translate(-50%, -52%); }
         }
-        @keyframes glow {
-            0% { text-shadow: 0 0 10px #fff, 0 0 20px #ff99cc; }
-            100% { text-shadow: 0 0 15px #fff, 0 0 30px #ff66aa, 0 0 40px #ff99ff; }
+        @keyframes pulse {
+            0% { opacity: 0.96; }
+            100% { opacity: 1; text-shadow: 0 0 12px rgba(255,255,255,0.8), 0 0 20px rgba(231,160,128,0.8); }
         }
-        @keyframes sparkle {
-            0% { opacity: 0.7; transform: scale(0.95); }
-            100% { opacity: 1; transform: scale(1.05); }
-        }
-        @keyframes bounce {
-            0% { transform: translateY(0); }
-            100% { transform: translateY(-8px); }
+        @keyframes twinkle {
+            0% { opacity: 0.4; }
+            100% { opacity: 0.8; }
         }
         #ghibli-birthday-message {
-            animation: float 4s ease-in-out infinite;
+            animation: float 3s ease-in-out infinite alternate;
+        }
+        #ghibli-birthday-message:after {
+            content: '';
+            position: absolute;
+            top: -8px;
+            left: -8px;
+            right: -8px;
+            bottom: -8px;
+            border: 1px solid rgba(255, 219, 187, 0.3);
+            border-radius: 16px;
+            pointer-events: none;
         }
     `;
     document.head.appendChild(styleElement);
     
-    // Assemble the message with all decorative elements
-    messageContainer.appendChild(topDecoration);
-    messageContainer.appendChild(spirits);
-    messageContainer.appendChild(mainMessage);
-    messageContainer.appendChild(sparkles);
-    messageContainer.appendChild(secondaryMessage);
-    messageContainer.appendChild(bottomDecoration);
+    // Assemble the message
+    messageContainer.appendChild(sceneTop); // Stars at top
+    messageContainer.appendChild(mainMessage); // Main birthday message
+    messageContainer.appendChild(sceneMiddle); // Scene with houses, trees, pumpkin
     
     // Add to document
     document.body.appendChild(messageContainer);
@@ -278,7 +276,7 @@ window.showGhibliBirthdayMessage = function() {
     // Fade in the message
     setTimeout(() => {
         messageContainer.style.opacity = '1';
-    }, 500);
+    }, 300);
     
     // Fade out after some time
     setTimeout(() => {
@@ -286,6 +284,6 @@ window.showGhibliBirthdayMessage = function() {
         setTimeout(() => {
             document.body.removeChild(messageContainer);
             document.head.removeChild(styleElement);
-        }, 2000);
-    }, 10000); // Display for longer (10 seconds)
+        }, 1500);
+    }, 15000);
 };
