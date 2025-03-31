@@ -100,7 +100,15 @@ function updateCamera() {
     
     if (!controls.enabled) {
         // Default follow mode: switch offset based on walking state
-        const offset = hasStartedWalking ? defaultOffset : initialOffset;
+        let offset;
+        if (!hasStartedWalking) {
+            // Use farViewOffset initially, before any walking has occurred
+            offset = farViewOffset;
+        } else {
+            // Once walking has started, use the normal defaultOffset
+            offset = defaultOffset;
+        }
+        
         const targetPosition = yourCharacter.position.clone().add(offset);
         camera.position.lerp(targetPosition, 0.1); // Smooth follow
         camera.lookAt(yourCharacter.position);
@@ -227,7 +235,7 @@ function checkCharacterCollision(character, potentialPosition, obstacles) {
 function resolveCharacterPumpkinCollisions(character, obstacles) {
     if (!character || !obstacles || obstacles.length === 0) return;
 
-    const characterName = character === zowieCharacter ? "Zowie" : "HSR"; // Identify character
+    const characterName = character === zowieCharacter ? "Zowie" : "HSR";
     const characterBox = new THREE.Box3();
     const obstacleBox = new THREE.Box3();
     const pushBuffer = 0.02; // Extra distance to push out for fully grown pumpkins
@@ -237,8 +245,9 @@ function resolveCharacterPumpkinCollisions(character, obstacles) {
     characterBox.setFromObject(character);
 
     for (const obstacle of obstacles) {
-        // Check against valid, non-broken pumpkins (growing or fully grown)
         if (obstacle && obstacle.userData && obstacle.userData.isPumpkin && !obstacle.userData.broken && obstacle.visible) {
+            
+            // If we reach here, the pumpkin is either growing or fully grown
             obstacle.updateMatrixWorld(true);
             obstacleBox.setFromObject(obstacle);
 
@@ -270,23 +279,11 @@ function resolveCharacterPumpkinCollisions(character, obstacles) {
                 const overlapZ = intersectionSize.z;
                 const pushDistance = Math.max(overlapX, overlapZ) + currentBuffer; 
 
-                // Check if character is completely inside the pumpkin
-                // This happens if the character's bounding box is entirely contained within the pumpkin's box
-                const isCompletelyInside = 
-                    characterBox.min.x >= obstacleBox.min.x && characterBox.max.x <= obstacleBox.max.x &&
-                    characterBox.min.z >= obstacleBox.min.z && characterBox.max.z <= obstacleBox.max.z;
-
-                // If completely inside, use a much stronger push
-                const finalPushDistance = isCompletelyInside ? 
-                    Math.max(obstacleBox.max.x - obstacleBox.min.x, obstacleBox.max.z - obstacleBox.min.z) + 0.5 : 
-                    pushDistance;
-
-                // Apply the push
-                character.position.addScaledVector(pushDirection, finalPushDistance);
+                character.position.addScaledVector(pushDirection, pushDistance);
                 character.updateMatrixWorld(true); 
 
                 const posAfter = character.position.clone();
-                console.log(`RESOLVE: ${characterName} pushed by overlap from ${isGrowing ? 'GROWING' : 'FULLY GROWN'} pumpkin. ${isCompletelyInside ? 'COMPLETELY INSIDE! ' : ''}Overlap (x,z): (${overlapX.toFixed(3)}, ${overlapZ.toFixed(3)}), Push Dist: ${finalPushDistance.toFixed(3)}, Pos after push:`, posAfter);
+                console.log(`RESOLVE: ${characterName} pushed by overlap from ${isGrowing ? 'GROWING' : 'FULLY GROWN'} pumpkin. Overlap (x,z): (${overlapX.toFixed(3)}, ${overlapZ.toFixed(3)}), Push Dist: ${pushDistance.toFixed(3)}, Pos after push:`, posAfter);
             }
         }
     }
