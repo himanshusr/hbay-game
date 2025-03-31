@@ -4,7 +4,8 @@ const clock = new THREE.Clock();
 
 // Camera settings
 const initialOffset = new THREE.Vector3(0, 3, 5);
-const defaultOffset = new THREE.Vector3(0, 5, 10);
+const defaultOffset = new THREE.Vector3(0, 6, 12);
+window.farViewOffset = new THREE.Vector3(0, 6, 10.5); // Make it globally accessible
 
 // Setup function to initialize scene, camera, and renderer
 function setupScene() {
@@ -12,9 +13,10 @@ function setupScene() {
     scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0xffd1b3, 0.002);
     
-    // Camera - initialized with a zoomed-in starting position
+    // Camera - initialized with a farther starting position
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 3, 5);
+    camera.position.copy(farViewOffset); // Use the farther position initially
+    camera.lookAt(0, 1.5, 0);
     
     // Renderer with warm lighting
     renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -76,6 +78,9 @@ function setupControls() {
         controls.enabled = false;
         document.body.style.cursor = 'default';
     });
+    
+    // Store offsets for use in updateCamera
+    controls.farViewOffset = farViewOffset;
 }
 
 // Setup scene lighting

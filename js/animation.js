@@ -7,6 +7,8 @@ let previousMousePosition = { x: 0, y: 0 };
 
 // Main animation loop
 function animate() {
+    // Log 1: Check if animate is running
+    // console.log("Animate loop running - Time:", Date.now()); 
     requestAnimationFrame(animate);
     
     const delta = clock.getDelta();
@@ -17,20 +19,39 @@ function animate() {
         stars.material.opacity = 0.7 + Math.sin(elapsedTime * 0.5) * 0.3;
     }
     
-    // Animate palm trees swaying
-    if (palmTrees) {
-        palmTrees.children.forEach(tree => {
-            tree.rotation.z = Math.sin(elapsedTime * 0.3) * 0.05;
-        });
+    // --- Collision Resolution Step (Run FIRST) ---
+    // Resolve any current overlaps for both characters BEFORE processing movement.
+    // Assumes 'pumpkins' array is globally accessible from js/environment/main.js
+    if (typeof pumpkins !== 'undefined') {
+        if (zowieCharacter) {
+            // Check if the function exists before calling it
+            if (typeof resolveCharacterPumpkinCollisions === 'function') {
+                resolveCharacterPumpkinCollisions(zowieCharacter, pumpkins);
+            } else {
+                console.warn('resolveCharacterPumpkinCollisions function is not defined');
+            }
+        }
+        if (yourCharacter) {
+            // Check if the function exists before calling it
+            if (typeof resolveCharacterPumpkinCollisions === 'function') {
+                resolveCharacterPumpkinCollisions(yourCharacter, pumpkins);
+            } else {
+                console.warn('resolveCharacterPumpkinCollisions function is not defined');
+            }
+        }
     }
+    // --- End Collision Resolution ---
     
     // Update character animations
-    if (yourMixer) yourMixer.update(delta);
-    if (zowieMixer) zowieMixer.update(delta);
+    if (typeof yourMixer !== 'undefined' && yourMixer) yourMixer.update(delta);
+    if (typeof zowieMixer !== 'undefined' && zowieMixer) zowieMixer.update(delta);
     
     // Process input and update movements
     const inputState = processInput();
-    updateCharacterAnimations(inputState);
+    updateZowieAnimation(inputState);
+    updateHSRFollowing();
+    
+    // Update camera
     updateCamera();
     
     // Check for balloon release trigger
@@ -38,12 +59,46 @@ function animate() {
     
     // Update environment
     updateEnvironment();
-    
+
+    // --- START: Rotate Keys ---
+    // Log 2: Check if rotatingKeys is accessible and what it contains
+    // console.log("Checking rotatingKeys in animate:", rotatingKeys); 
+
+    if (typeof rotatingKeys !== 'undefined' && Array.isArray(rotatingKeys)) {
+        const rotationSpeed = 0.02; 
+        
+        for (let i = rotatingKeys.length - 1; i >= 0; i--) {
+            const key = rotatingKeys[i];
+            if (key && key.parent === scene) { 
+                key.rotation.y += rotationSpeed;
+                // Log 3: Confirm rotation is being applied
+                // console.log("Rotating key:", key.uuid, "New Y rotation:", key.rotation.y); 
+            } else {
+                console.log("Removing key from rotatingKeys array (not in scene?)."); 
+                rotatingKeys.splice(i, 1);
+            }
+        }
+    } else {
+        // Log 4: Indicate if rotatingKeys is not found or not an array
+        // console.log("rotatingKeys is undefined or not an array in animate.");
+    }
+    // --- END: Rotate Keys ---
+
     // Update camera info display
     updateCameraInfo();
+
+    if (palmTrees) {
+        palmTrees.children.forEach(tree => {
+            if (tree.userData.update) {
+                tree.userData.update(elapsedTime);
+            }
+        });
+    }
     
-    // Render the scene
-    renderer.render(scene, camera);
+    // Render the scene - Make sure this is AFTER the rotation code
+    if (typeof renderer !== 'undefined' && typeof scene !== 'undefined' && typeof camera !== 'undefined') {
+        renderer.render(scene, camera);
+    }
 }
 
 // Check if balloons should be released
@@ -94,22 +149,6 @@ window.addEventListener('mousedown', (event) => {
 
 window.addEventListener('mouseup', () => {
     isMouseDown = false;
-});
-
-window.addEventListener('mousemove', (event) => {
-    if (!isMouseDown) return;
-
-    const deltaX = event.clientX - previousMousePosition.x;
-    const deltaY = event.clientY - previousMousePosition.y;
-
-    // Update camera rotation based on mouse movement
-    camera.rotation.y -= deltaX * 0.002;
-    
-    // Limit vertical rotation to prevent camera flipping
-    const newXRotation = camera.rotation.x - deltaY * 0.002;
-    camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, newXRotation));
-
-    previousMousePosition = { x: event.clientX, y: event.clientY };
 });
 
 // Optional: prevent context menu on right-click

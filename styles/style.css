@@ -40,3 +40,12 @@ canvas {
     z-index: 10;
     opacity: 0;
 }
+#ghibli-birthday-message {
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+    0% { transform: translate(-50%, -50%); }
+    50% { transform: translate(-50%, -52%); }
+    100% { transform: translate(-50%, -50%); }
+}
