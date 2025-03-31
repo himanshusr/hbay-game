@@ -16,6 +16,7 @@ var pickupCooldown = 0;
 var lastFKeyState = false;
 var lastTKeyState = false;
 var lastPKeyState = false; // Track P key for punching pumpkins
+var lastUKeyState = false; // Track U key for unlocking door
 
 // Add these variables at the top of the file with other variables
 var isCarryingBucket = false;
@@ -205,6 +206,20 @@ function isNearKey() {
     return distance <= pickupDistance; 
 }
 
+// Helper function to check if Zowie is near the keyhole area
+function isNearKeyhole() {
+    if (!zowieCharacter) return false;
+    const zowiePosition = zowieCharacter.position.clone();
+    // Define the approximate position in front of the keyhole on the main building
+    // The building is at z = -30, keyhole is at z = -22.95. Let's use z = -22 for interaction.
+    const keyholeInteractionPoint = new THREE.Vector3(0, 0, -22);
+    const unlockDistanceThreshold = 3.0; // How close Zowie needs to be
+
+    const distance = zowiePosition.distanceTo(keyholeInteractionPoint);
+    // console.log(`Distance to keyhole: ${distance.toFixed(2)}`); // Optional: for debugging
+    return distance <= unlockDistanceThreshold;
+}
+
 // Function to create seeds and store them in seedsArray
 function createSeeds() {
     const seedGeometry = new THREE.SphereGeometry(0.1, 8, 8);
@@ -262,7 +277,7 @@ function handleSeedInteraction() {
     }
     
     // First handle P key for punching - give it priority
-    const pKeyPressed = keys['p'] || keys['P']; 
+    const pKeyPressed = keys['p'] || keys['P'];
     if (pKeyPressed && !lastPKeyState) {
         console.log("P key pressed!");
         const nearbyPumpkin = findNearbyPumpkin();
@@ -281,6 +296,17 @@ function handleSeedInteraction() {
     const dKeyPressed = keys['d'] || keys['D'];
     const fKeyPressed = keys['f'] || keys['F'];
     const tKeyPressed = keys['t'] || keys['T'];
+    const uKeyPressed = keys['u'] || keys['U']; // Check for U key
+    
+    // --- Handle U key for unlocking ---
+    // This check should happen before dropping, but after punching
+    if (uKeyPressed && !lastUKeyState) {
+        if (isCarryingKey && isNearKeyhole()) {
+            console.log("U key pressed near keyhole while carrying key.");
+            unlockDoor();
+            pickupCooldown = 10; // Add a small cooldown
+        }
+    }
     
     // C key for pickup
     if (cKeyPressed && !lastCKeyState) {
@@ -288,7 +314,7 @@ function handleSeedInteraction() {
             // *** Prioritize picking up the key ***
             if (isNearKey()) {
                 pickupKey();
-                // pickupCooldown = 10; 
+                // pickupCooldown = 10;
             }
             // Then check if near bucket
             else if (isNearBucket()) {
@@ -305,13 +331,17 @@ function handleSeedInteraction() {
     
     // D key for dropping
     if (dKeyPressed && !lastDKeyState) {
-        if (isCarryingSeed) {
+        // *** Prevent dropping the key if the unlock action is available ***
+        if (isCarryingKey && isNearKeyhole()) {
+             // Do nothing - U key should be used instead.
+             displayText('Press U to unlock the door!'); // Reinforce the instruction
+        } else if (isCarryingSeed) {
             dropSeed();
             pickupCooldown = 10;
         } else if (isCarryingBucket) {
             dropBucket();
             pickupCooldown = 10;
-        } else if (isCarryingKey) { // *** Add case for dropping key ***
+        } else if (isCarryingKey) { // Drop key only if not near the keyhole
             dropKey();
             pickupCooldown = 10;
         }
@@ -334,6 +364,7 @@ function handleSeedInteraction() {
     lastDKeyState = dKeyPressed;
     lastFKeyState = fKeyPressed;
     lastTKeyState = tKeyPressed;
+    lastUKeyState = uKeyPressed; // Update U key state
 }
 
 // Try to pick up a seed near Zowie
@@ -613,32 +644,27 @@ function dropKey() {
     displayText('Key dropped.'); 
 }
 
-// Update function to check Zowie's position and show/hide the "C" icon
+// Update function to check Zowie's position and show/hide text
 function updateEnvironment() {
     if (!zowieCharacter) return;
-    
+
     const zowiePosition = zowieCharacter.position.clone();
-    
+
+    // --- Interaction Text Logic ---
+    let instruction = ''; // Default to no instruction
+
     // Always check for punching first
     const nearbyPumpkin = findNearbyPumpkin();
     if (nearbyPumpkin) {
-        displayText('Press P to punch the pumpkin!');
-    }
-    
-    // Handle key press for interactions
-    handleSeedInteraction();
-    
-    // Check proximity to the key
-    const nearKey = isNearKey();
-    
-    // Rest of the function for other interactions
-    // (Only add other UI displays if not near a pumpkin)
-    if (!nearbyPumpkin) {
+        instruction = 'Press P to punch the pumpkin!';
+    } else {
+        // Check various proximities only if not near a punchable pumpkin
+        const nearKeyToPickup = isNearKey(); // Is Zowie near the key *on the ground*?
+        const nearKeyhole = isNearKeyhole(); // Is Zowie near the keyhole *area*?
+
         // Calculate if Zowie is near any seed
         let nearAnySeed = false;
         let closestDistance = Infinity;
-        
-        // Find the closest seed
         for (let i = 0; i < seedsArray.length; i++) {
             const seed = seedsArray[i];
             const distance = zowiePosition.distanceTo(seed.position);
@@ -646,95 +672,66 @@ function updateEnvironment() {
                 closestDistance = distance;
             }
         }
-        
-        // Near seeds if closest seed is within pickup distance
         nearAnySeed = closestDistance <= pickupDistance * 1.2;
-        
+
         // Check if near bucket
         const nearBucket = isNearBucket();
-        
+
         // Check if near pond
         const nearPond = isNearPond();
-        
-        // Update icons visibility
-        if (cIcon && dIcon) {
-            // *** ADD LOG ***
-            // console.log(`UI Check: nearKey=${nearKey}, carryingSeed=${isCarryingSeed}, carryingBucket=${isCarryingBucket}, carryingKey=${isCarryingKey}`);
 
-            // *** Prioritize Key Pickup UI ***
-            if (nearKey && !isCarryingSeed && !isCarryingBucket && !isCarryingKey) {
-                // *** ADD LOG ***
-                console.log("Displaying 'Press C to collect key'"); 
-                cIcon.visible = true;
-                dIcon.visible = false;
-                // Position C icon (adjust as needed)
-                cIcon.position.set(window.innerWidth - 50, 50, 0); 
-                displayText('Press C to collect key');
-            }
-            // C icon shown when near seeds or bucket and not carrying anything (and not near key)
-            else if (!isCarryingSeed && !isCarryingBucket && !isCarryingKey && (nearAnySeed || nearBucket)) {
-                 // *** ADD LOG ***
-                 // console.log("Displaying 'Press C to collect seed/bucket'");
-                cIcon.visible = true;
-                dIcon.visible = false;
-                
-                // Position the C icon (adjust as needed)
-                cIcon.position.set(window.innerWidth - 50, 50, 0); 
-                
-                // Display text instruction
-                if (nearBucket) {
-                    displayText('Press C to pick up bucket');
-                } else {
-                    displayText('Press C to collect seed');
-                }
-            } 
-            // F key instruction when near pond with bucket
-            else if (isCarryingBucket && nearPond && !heldBucket.hasWater) {
-                cIcon.visible = false;
-                dIcon.visible = false; // D icon shouldn't show here
-                displayText('Press F to fill bucket with water');
-            }
-            // D icon shown when carrying something
-            else if (isCarryingSeed || isCarryingBucket || isCarryingKey) {
-                cIcon.visible = false;
-                dIcon.visible = true;
-                
-                // Position the D icon (adjust as needed)
-                dIcon.position.set(window.innerWidth - 50, 50, 0); 
-                
-                // Display text instruction
-                if (isCarryingKey) {
-                    displayText('Press D to drop key'); // Or "Use Key" etc.
-                } else if (isCarryingBucket) {
-                    if (heldBucket.hasWater) {
-                        displayText('Press D to drop bucket with water, T to throw water');
-                    } else {
-                        displayText('Press D to drop bucket');
-                    }
-                } else { // Carrying seed
-                    displayText('Press D to drop seed');
-                }
-            }
-            // Hide both when not near interactive objects and not carrying
-            else {
-                 // *** ADD LOG ***
-                 // console.log("Hiding C/D icons or showing Drop message");
-                 cIcon.visible = false;
-                 dIcon.visible = false;
-                 // Clear text only if not near a punchable pumpkin
-                 if (!nearbyPumpkin) {
-                      displayText(''); 
-                 }
+        // Determine instruction text based on proximity and state
+        // *** HIGHEST PRIORITY: Unlock Interaction ***
+        if (isCarryingKey && nearKeyhole) {
+            instruction = 'Press U to unlock';
+        }
+        // *** Next Priority: Key Pickup ***
+        else if (nearKeyToPickup && !isCarryingSeed && !isCarryingBucket && !isCarryingKey) {
+            instruction = 'Press C to collect key';
+        }
+        // C instruction for seeds or bucket pickup (if not carrying anything and not near key/keyhole)
+        else if (!isCarryingSeed && !isCarryingBucket && !isCarryingKey && (nearAnySeed || nearBucket)) {
+            if (nearBucket) {
+                instruction = 'Press C to pick up bucket';
+            } else {
+                instruction = 'Press C to collect seed';
             }
         }
-    } else {
-        // *** ADD LOG ***
-        // console.log("Near punchable pumpkin, hiding C/D icons.");
-        // If near a punchable pumpkin, hide C/D icons
-        if (cIcon) cIcon.visible = false;
-        if (dIcon) dIcon.visible = false;
+        // F key instruction when near pond with bucket
+        else if (isCarryingBucket && nearPond && !heldBucket.hasWater) {
+            instruction = 'Press F to fill bucket with water';
+        }
+        // D instruction shown when carrying something (and NOT in unlock situation)
+        else if (isCarryingSeed || isCarryingBucket || isCarryingKey) { // isCarryingKey here means not near keyhole
+            if (isCarryingKey) {
+                instruction = 'Press D to drop key'; // Only shown when not near keyhole
+            } else if (isCarryingBucket) {
+                if (heldBucket.hasWater) {
+                    instruction = 'Press D to drop bucket, T to throw water'; // Combined instructions
+                } else {
+                    instruction = 'Press D to drop bucket';
+                }
+            } else { // Carrying seed
+                instruction = 'Press D to drop seed';
+            }
+        }
+        // No specific interaction nearby
+        else {
+            instruction = '';
+        }
     }
-    
+
+    // Display the determined instruction text
+    displayText(instruction);
+    // --- End Interaction Text Logic ---
+
+
+    // Handle key press for interactions (includes U key now)
+    // This needs to run *after* determining the text for the current frame,
+    // but *before* the next frame, so it reacts to the state shown.
+    handleSeedInteraction();
+
+
     // Animate water in the pond
     scene.traverse(function(object) {
         if (object.isWater) {
@@ -757,5 +754,45 @@ function updateGame() {
         // This might need tweaking based on the specific model and animations
         // heldBucket.container.rotation.set(0, Math.PI/4, 0);
         // heldBucket.heldMesh.rotation.set(-Math.PI / 2, 0, 0);
+    }
+}
+
+function unlockDoor() {
+    if (!isCarryingKey || !heldKey) {
+        console.error("Unlock attempt failed: Not carrying key or heldKey is invalid.");
+        return;
+    }
+
+    console.log("Attempting to unlock door...");
+
+    // The key mesh should be attached to zowieCharacter (based on pickupKey)
+    if (heldKey.parent === zowieCharacter) {
+        zowieCharacter.remove(heldKey);
+        console.log("Key removed from Zowie.");
+
+        // Successfully removed, update state
+        isCarryingKey = false;
+        heldKey = null; // Important to clear the reference
+
+        displayText('Door unlocked!'); // Update UI text
+
+        // --- Placeholder for future actions ---
+        // Example: Trigger an animation on the building
+        // if (typeof openBuildingDoor === 'function') {
+        //     openBuildingDoor();
+        // }
+        // Example: Play a sound
+        // if (typeof playSound === 'function') {
+        //     playSound('unlock');
+        // }
+        // ------------------------------------
+
+    } else {
+        console.error("Unlock failed: Held key is not attached to Zowie as expected.", heldKey.parent);
+        // As a fallback, try removing from the scene directly, though this shouldn't be needed
+        scene.remove(heldKey);
+        isCarryingKey = false; // Still update state if possible
+        heldKey = null;
+        displayText('Error unlocking.'); // Indicate an issue
     }
 }
