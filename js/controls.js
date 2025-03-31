@@ -28,8 +28,9 @@ function processInput() {
     let actualMovementOccurred = false; // Did the character actually move?
 
     if (movedInput) {
-        const moveX = directionX * PARAMS.walkSpeed;
-        const moveZ = directionZ * PARAMS.walkSpeed;
+        // Increase movement speed by adjusting these values
+        const moveX = directionX * PARAMS.walkSpeed * 1.1; // 50% faster
+        const moveZ = directionZ * PARAMS.walkSpeed * 1.1;
         
         // Calculate potential next position
         const potentialPosition = zowieCharacter.position.clone();
@@ -37,7 +38,6 @@ function processInput() {
         potentialPosition.z += moveZ;
 
         // Check for collision with pumpkins at the potential position
-        // Assumes 'pumpkins' array is globally accessible from js/environment/main.js
         let collisionDetected = false;
         if (typeof pumpkins !== 'undefined') {
              collisionDetected = checkCharacterCollision(zowieCharacter, potentialPosition, pumpkins);
@@ -45,16 +45,18 @@ function processInput() {
 
         // Only move if no collision detected
         if (!collisionDetected) {
-            // Rotate Zowie character to face movement direction
+            // Rotate Zowie character to face movement direction - make rotation snappier
             if (directionX !== 0 || directionZ !== 0) {
                 const angle = Math.atan2(directionX, directionZ);
-                zowieCharacter.rotation.y = angle;
+                // Make rotation more immediate with a higher lerp factor
+                const currentAngle = zowieCharacter.rotation.y;
+                const angleDiff = angle - currentAngle;
+                zowieCharacter.rotation.y = currentAngle + angleDiff * 0.3; // Faster rotation
             }
             // Move Zowie character by updating position
             zowieCharacter.position.copy(potentialPosition); 
             actualMovementOccurred = true; // Movement happened
         }
-        // If collisionDetected, Zowie's position is NOT updated.
     }
     
     // Return state indicating if input was pressed AND if movement occurred
@@ -72,19 +74,21 @@ function updateZowieAnimation(inputState) {
     // Animation state handling for Zowie
     if (inputState.moved && currentZowieAnimation !== 'walk') {
         if (zowieWalkAnimation) {
-            if (zowieIdleAnimation && currentZowieAnimation === 'idle') zowieIdleAnimation.fadeOut(0.2);
+            if (zowieIdleAnimation && currentZowieAnimation === 'idle') zowieIdleAnimation.fadeOut(0.1); // Faster transition
             // Add checks for other animations if they exist (like throwing)
             else if (zowieThrowingAnimation && currentZowieAnimation === 'throwing') zowieThrowingAnimation.stop(); 
 
-            zowieWalkAnimation.reset().fadeIn(0.2).play();
+            zowieWalkAnimation.reset().fadeIn(0.1).play(); // Faster transition
+            // Make the walk animation faster
+            zowieWalkAnimation.setEffectiveTimeScale(1.2); // Speed up animation
             currentZowieAnimation = 'walk';
-            isWalking = true; // Keep isWalking potentially for Zowie's state if needed elsewhere
-            hasStartedWalking = true; // Keep this if camera logic depends on it
+            isWalking = true;
+            hasStartedWalking = true;
         }
     } else if (!inputState.moved && currentZowieAnimation === 'walk') {
         if (zowieIdleAnimation) {
-            if (zowieWalkAnimation) zowieWalkAnimation.fadeOut(0.2);
-            zowieIdleAnimation.reset().fadeIn(0.2).play();
+            if (zowieWalkAnimation) zowieWalkAnimation.fadeOut(0.1); // Faster transition
+            zowieIdleAnimation.reset().fadeIn(0.1).play(); // Faster transition
             currentZowieAnimation = 'idle';
             isWalking = false;
         }
@@ -127,8 +131,8 @@ function updateHSRFollowing() {
     const sideOffset = 0.8;     
     const randomFactor = 0.2;   
     const stopDistance = 1.8;   
-    const turnSpeed = 0.05;     
-    const lerpFactor = 0.04;    
+    const turnSpeed = 0.1;     // Faster turning
+    const lerpFactor = 0.05;    // Faster movement
 
     // --- Calculate target position (remains the same) ---
     const zowieDirection = new THREE.Vector3();
@@ -159,7 +163,6 @@ function updateHSRFollowing() {
             yourCharacter.position.copy(potentialPosition); // Apply the lerped position
             shouldMove = true; // Movement happened
         } 
-        // If collisionDetected, HSR's position is NOT updated.
     } 
 
     // --- Rotation (remains the same) ---
@@ -169,15 +172,16 @@ function updateHSRFollowing() {
     // --- Animation (remains the same, based on shouldMove flag) ---
     if (shouldMove && !isHSRWalking) {
         if (yourWalkAnimation) {
-            if (yourIdleAnimation && currentYourAnimation === 'idle') yourIdleAnimation.fadeOut(0.2);
-            yourWalkAnimation.reset().fadeIn(0.2).play();
+            if (yourIdleAnimation && currentYourAnimation === 'idle') yourIdleAnimation.fadeOut(0.1);
+            yourWalkAnimation.reset().fadeIn(0.1).play();
+            yourWalkAnimation.setEffectiveTimeScale(1.2); // Speed up animation
             currentYourAnimation = 'walk';
             isHSRWalking = true;
         }
     } else if (!shouldMove && isHSRWalking) {
         if (yourIdleAnimation) {
-            if (yourWalkAnimation) yourWalkAnimation.fadeOut(0.2);
-            yourIdleAnimation.reset().fadeIn(0.2).play();
+            if (yourWalkAnimation) yourWalkAnimation.fadeOut(0.1);
+            yourIdleAnimation.reset().fadeIn(0.1).play();
             currentYourAnimation = 'idle';
             isHSRWalking = false;
         }
