@@ -1,4 +1,5 @@
 function init() {
+    // 
     // Set up the scene, camera, renderer, and lighting
     setupScene();
     
