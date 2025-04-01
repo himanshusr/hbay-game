@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Happy Birthday Zowie!</title>
     <link rel="stylesheet" href="styles/style.css">
+    <!-- Add Google Font link if not already present for Ghibli message -->
+    <link href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&display=swap" rel="stylesheet">
 </head>
 <body>
     <div id="loading">Loading the magic... please wait</div>
@@ -12,7 +14,7 @@
         Happy Birthday Zowie!<br>
         ✨ Wishing you a wonderful day! ✨
     </div>
-    <div id="instructions">Arrow keys to move, Space to toggle camera view</div>
+    <!-- <div id="instructions">Arrow keys to move, Space to toggle camera view</div> -->
     <div id="instructionText" style="position: absolute; top: 10px; right: 10px; color: white; font-size: 16px;"></div>
     
     <!-- Libraries -->
@@ -35,6 +37,7 @@
     <script src="js/environment/utils.js"></script>
     <script src="js/joystick.js"></script>
     <script src="js/controls.js"></script>
+    <script src="js/ui.js"></script>
     <script src="js/characters.js"></script>
     <script src="js/animation.js"></script>
     <script src="js/main.js"></script>
@@ -43,6 +46,16 @@
     <div id="joystick-container">
         <div id="joystick-base"></div>
         <div id="joystick-handle"></div>
+    </div>
+
+    <!-- Action Buttons Container (Initially Hidden) -->
+    <div id="action-buttons-container">
+        <button id="action-button-pickup" class="action-button">Pick Up</button> <!-- C -->
+        <button id="action-button-drop" class="action-button">Drop</button>     <!-- D -->
+        <button id="action-button-fill" class="action-button">Fill</button>     <!-- F -->
+        <button id="action-button-throw" class="action-button">Throw</button>    <!-- T -->
+        <button id="action-button-punch" class="action-button">Punch</button>    <!-- P -->
+        <button id="action-button-unlock" class="action-button">Unlock</button>   <!-- U -->
     </div>
 </body>
 </html>

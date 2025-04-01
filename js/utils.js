@@ -27,10 +27,6 @@ function showLoadingComplete() {
         loadingElement.style.display = 'none';
     }
     
-    const instructionsElement = document.getElementById('instructions');
-    if (instructionsElement) {
-        instructionsElement.style.opacity = '1';
-    }
 }
 
 // Create placeholder profile images
