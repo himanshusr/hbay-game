@@ -12,40 +12,91 @@ function setupKeyboardControls() {
     });
 }
 
+// Vectors for camera-relative movement calculation (declared outside to avoid reallocation)
+const cameraDirection = new THREE.Vector3();
+const cameraForward = new THREE.Vector3();
+const cameraRight = new THREE.Vector3();
+const worldMoveVector = new THREE.Vector3(); // To store the final world-space direction
+
 // Process keyboard input and update character movement
 function processInput() {
-    if (!zowieCharacter) return false;
+    if (!zowieCharacter || !camera) return false; // Ensure camera exists
 
-    let directionX = 0;
-    let directionZ = 0;
+    let inputX = 0;
+    let inputY = 0; // Use generic input names before mapping
     let isJoystickActive = false;
 
-    // Check joystick input first (use window.joystickInput if defined)
+    // Check joystick input first
     if (typeof window.joystickInput !== 'undefined' && (window.joystickInput.x !== 0 || window.joystickInput.y !== 0)) {
-        directionX = window.joystickInput.x;
-        directionZ = window.joystickInput.y; // Y is already inverted in joystick.js
+        inputX = window.joystickInput.x;
+        inputY = window.joystickInput.y; // Use joystick Y directly
         isJoystickActive = true;
-        // console.log(`Joystick Input: X=${directionX.toFixed(2)}, Z=${directionZ.toFixed(2)}`); // Optional logging
     } else {
-        // Fallback to keyboard if joystick is not active
-        if (keys['ArrowUp']) directionZ = -1;
-        if (keys['ArrowDown']) directionZ = 1;
-        if (keys['ArrowLeft']) directionX = -1;
-        if (keys['ArrowRight']) directionX = 1;
+        // Fallback to keyboard
+        if (keys['ArrowUp']) inputY = 1;    // Map keyboard Up to positive Y input
+        if (keys['ArrowDown']) inputY = -1; // Map keyboard Down to negative Y input
+        if (keys['ArrowLeft']) inputX = -1;
+        if (keys['ArrowRight']) inputX = 1;
     }
 
-    const movedInput = (directionX !== 0 || directionZ !== 0);
+    const movedInput = (inputX !== 0 || inputY !== 0);
     let actualMovementOccurred = false;
+    let moveX = 0;
+    let moveZ = 0;
+    let targetAngle = zowieCharacter.rotation.y; // Default to current angle
 
     if (movedInput) {
         // Calculate magnitude for speed scaling (especially for joystick)
-        const magnitude = Math.min(1.0, Math.sqrt(directionX * directionX + directionZ * directionZ));
+        const magnitude = Math.min(1.0, Math.sqrt(inputX * inputX + inputY * inputY));
+        const moveSpeed = PARAMS.walkSpeed * 1.1 * magnitude; // Scale speed by magnitude
 
-        // Use the magnitude to scale the speed
-        // Adjust the base speed multiplier (1.1) if needed
-        const moveSpeed = PARAMS.walkSpeed * 1.1;
-        const moveX = directionX * moveSpeed * magnitude; // Apply magnitude scaling
-        const moveZ = directionZ * moveSpeed * magnitude; // Apply magnitude scaling
+        if (isJoystickActive) {
+            // --- Camera-Relative Movement ---
+            // 1. Get camera forward direction (projected onto XZ plane)
+            camera.getWorldDirection(cameraDirection);
+            cameraForward.set(cameraDirection.x, 0, cameraDirection.z).normalize();
+
+            // 2. Get camera right direction (perpendicular to forward on XZ plane)
+            // cameraRight.set(cameraForward.z, 0, -cameraForward.x); // Simple 90-degree rotation
+            // Or using cross product with world up vector:
+            cameraRight.crossVectors(camera.up, cameraForward).normalize(); // camera.up is usually (0,1,0)
+
+            // 3. Calculate world-space movement vector based on joystick input and camera orientation
+            // Joystick Y controls movement along cameraForward, Joystick X along cameraRight
+            worldMoveVector.x = (cameraForward.x * inputY + cameraRight.x * inputX);
+            worldMoveVector.z = (cameraForward.z * inputY + cameraRight.z * inputX);
+
+            // Normalize the final world direction vector if it's not zero
+            if (worldMoveVector.lengthSq() > 0.001) { // Use lengthSq for efficiency
+                 worldMoveVector.normalize();
+                 targetAngle = Math.atan2(worldMoveVector.x, worldMoveVector.z); // Calculate angle based on world vector
+            }
+
+            moveX = worldMoveVector.x * moveSpeed;
+            moveZ = worldMoveVector.z * moveSpeed;
+            // --- End Camera-Relative ---
+
+        } else {
+            // --- World-Relative (Keyboard) Movement ---
+            // Keyboard uses direct world axes for simplicity (Up = -Z, Down = +Z, Left = -X, Right = +X)
+            // Note: We mapped keyboard Up/Down to inputY earlier.
+            // Remap inputY to Z movement for keyboard: Up (inputY=1) -> -Z, Down (inputY=-1) -> +Z
+            let keyDirectionX = inputX;
+            let keyDirectionZ = -inputY; // Invert Y input for Z direction
+
+            // Normalize keyboard direction vector if moving diagonally
+            const keyDirLength = Math.sqrt(keyDirectionX * keyDirectionX + keyDirectionZ * keyDirectionZ);
+            if (keyDirLength > 0) {
+                keyDirectionX /= keyDirLength;
+                keyDirectionZ /= keyDirLength;
+                targetAngle = Math.atan2(keyDirectionX, keyDirectionZ); // Angle based on direct input
+            }
+
+            moveX = keyDirectionX * moveSpeed;
+            moveZ = keyDirectionZ * moveSpeed;
+            // --- End World-Relative ---
+        }
+
 
         // Calculate potential next position
         const potentialPosition = zowieCharacter.position.clone();
@@ -62,18 +113,11 @@ function processInput() {
 
        // Only move if no collision detected
         if (!collisionDetected) {
-            // Rotate Zowie character to face movement direction
-            if (directionX !== 0 || directionZ !== 0) {
-                const angle = Math.atan2(directionX, directionZ);
+            // Rotate Zowie character smoothly towards the target angle
+            const targetQuaternion = new THREE.Quaternion();
+            targetQuaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), targetAngle);
+            zowieCharacter.quaternion.slerp(targetQuaternion, 0.15); // Adjust slerp factor for rotation speed
 
-                // Use Quaternion slerp for smoother rotation with analog input
-                const targetQuaternion = new THREE.Quaternion();
-                // Y axis is typically the up vector in Three.js
-                targetQuaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), angle);
-
-                // Adjust the slerp factor (0.15) for rotation speed
-                zowieCharacter.quaternion.slerp(targetQuaternion, 0.15);
-            }
             // Move Zowie character by updating position
             zowieCharacter.position.copy(potentialPosition);
            actualMovementOccurred = true; // Movement happened
@@ -83,8 +127,8 @@ function processInput() {
     // Return state indicating if input was pressed AND if movement occurred
     return {
         moved: movedInput && actualMovementOccurred,
-        directionX: directionX, // Return the final direction used
-        directionZ: directionZ  // Return the final direction used
+        directionX: moveX, // Return the actual movement applied (can be useful)
+        directionZ: moveZ
     };
 }
 
