@@ -30,16 +30,7 @@ canvas {
     text-align: center;
     z-index: 10;
 }
-#instructions {
-    position: absolute;
-    bottom: 20px;
-    left: 20px;
-    color: white;
-    text-shadow: 0 0 3px #000;
-    font-size: 16px;
-    z-index: 10;
-    opacity: 0;
-}
+
 #ghibli-birthday-message {
     animation: float 3s ease-in-out infinite;
 }
@@ -50,49 +41,87 @@ canvas {
     100% { transform: translate(-50%, -50%); }
 }
 
-/* Action Buttons Container */
-#action-buttons-container {
-    /* Styles are mostly inline in HTML for this example, but can be moved here */
-    gap: 10px; /* Spacing between buttons */
+#joystick-container {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 120px;
+    height: 120px;
+    z-index: 100;
+    display: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+    touch-action: none;
 }
 
-/* Base Action Button Style */
+#joystick-base {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(128, 128, 128, 0.4);
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+#joystick-handle {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    background-color: rgba(200, 200, 200, 0.7);
+    border-radius: 50%;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    cursor: grab;
+    border: 1px solid rgba(50, 50, 50, 0.5);
+}
+
+#joystick-handle:active {
+    cursor: grabbing;
+    background-color: rgba(220, 220, 220, 0.8);
+}
+
+#action-buttons-container {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 10;
+}
+
 .action-button {
-    padding: 10px 15px;
-    min-width: 100px; /* Ensure buttons have some width */
+    display: none;
+    padding: 12px 18px;
     font-size: 16px;
+    font-weight: bold;
     color: #333;
-    border: none;
-    border-radius: 20px; /* Rounded corners */
+    background-color: rgba(255, 255, 255, 0.7);
+    border: 2px solid rgba(255, 255, 255, 0.9);
+    border-radius: 25px;
     cursor: pointer;
     text-align: center;
-    user-select: none; /* Prevent text selection on tap */
-    -webkit-user-select: none; /* Safari */
+    min-width: 80px;
+    backdrop-filter: blur(2px);
     transition: background-color 0.2s ease, transform 0.1s ease;
-    display: flex; /* Use flex for centering content if needed */
-    justify-content: center;
-    align-items: center;
 }
 
-/* Ghibli-inspired Style */
-.ghibli-button {
-    background-color: rgba(240, 248, 255, 0.8); /* Light, slightly transparent background (AliceBlue) */
-    border: 1px solid rgba(100, 149, 237, 0.5); /* Soft border (CornflowerBlue) */
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow */
-    font-family: 'Arial', sans-serif; /* Choose a friendly font */
-    font-weight: bold;
-    color: #5a4a42; /* Earthy text color */
-}
-
-/* Style for when button is pressed */
 .action-button:active {
-    background-color: rgba(210, 228, 245, 0.9); /* Slightly darker when pressed */
-    transform: scale(0.95); /* Slightly shrink when pressed */
+    background-color: rgba(255, 255, 255, 0.9);
+    transform: scale(0.95);
 }
 
-/* Suggestion: Add icons using background-image */
-/*
-#btn-pickup { background-image: url('path/to/pickup-icon.png'); background-size: contain; background-repeat: no-repeat; background-position: left center; padding-left: 30px; }
-#btn-drop { background-image: url('path/to/drop-icon.png'); ... }
-etc.
-*/
+.action-button-visible {
+    display: block;
+}
+
+@media (hover: none) and (pointer: coarse) {
+    #joystick-container {
+        display: block;
+    }
+    #action-buttons-container {
+        display: flex;
+    }
+}
