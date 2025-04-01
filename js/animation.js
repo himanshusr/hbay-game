@@ -90,7 +90,7 @@ function animate() {
     // --- END: Rotate Keys ---
 
     // Update camera info display
-    updateCameraInfo();
+    // updateCameraInfo();
 
     if (palmTrees) {
         palmTrees.children.forEach(tree => {
@@ -100,6 +100,11 @@ function animate() {
         });
     }
     
+    // Update UI elements (like action buttons)
+    if (typeof updateActionButtonsVisibility === 'function') {
+        updateActionButtonsVisibility();
+    }
+
     // Render the scene - Make sure this is AFTER the rotation code
     if (typeof renderer !== 'undefined' && typeof scene !== 'undefined' && typeof camera !== 'undefined') {
         renderer.render(scene, camera);

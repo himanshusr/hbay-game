@@ -28,7 +28,7 @@ function setupScene() {
     document.body.appendChild(renderer.domElement);
     
     // Camera info display
-    setupCameraInfo();
+    // setupCameraInfo();
     
     // Controls setup
     setupControls();
