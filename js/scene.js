@@ -65,22 +65,38 @@ function setupControls() {
     controls.maxPolarAngle = Math.PI / 2 - 0.1;
     controls.enableZoom = false;
     controls.enablePan = false;
-    controls.enabled = false;
+    controls.enabled = false; // Start disabled
     controls.target.set(0, 1.5, 0);
-    
-    // Enable angle change on click-and-drag
-    document.addEventListener('mousedown', () => {
-        controls.enabled = true;
-        document.body.style.cursor = 'grabbing';
-    });
-    
-    document.addEventListener('mouseup', () => {
+
+    // Only enable click/drag for camera on non-mobile devices
+    if (!isMobileDevice()) { // Check if it's NOT mobile
+        // Enable angle change on click-and-drag
+        document.addEventListener('mousedown', () => {
+            // Only enable if not currently doing a touch drag (safety check, though unlikely)
+            if (!isDragging) {
+                controls.enabled = true;
+                document.body.style.cursor = 'grabbing';
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            controls.enabled = false;
+            document.body.style.cursor = 'default';
+        });
+    } else {
+        // On mobile, keep OrbitControls disabled so it doesn't interfere
+        // with the movement drag controls.
         controls.enabled = false;
-        document.body.style.cursor = 'default';
-    });
-    
+    }
+
     // Store offsets for use in updateCamera
     controls.farViewOffset = farViewOffset;
+}
+
+// Helper function (ensure isMobileDevice is accessible here or redefine it)
+// You might need to move isMobileDevice to utils.js or ensure controls.js is loaded before scene.js
+function isMobileDevice() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
 
 // Setup scene lighting

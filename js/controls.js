@@ -1,5 +1,29 @@
 // Keyboard state
 const keys = {};
+// Touch state - Replace boolean flags with drag state
+// const touchInputState = { up: false, down: false, left: false, right: false }; // REMOVE THIS
+let isMobile = false; // Flag to check if mobile
+let isDragging = false; // Is the user currently dragging on mobile?
+let touchStartX = 0;
+let touchStartY = 0;
+let touchMoveVector = { x: 0, y: 0 }; // Normalized direction vector
+const touchThreshold = 15; // Minimum pixels to drag before movement starts
+
+// --- NEW: Touch Action Flags ---
+// These flags simulate single key presses for actions on mobile
+let touchActionPickup = false;
+let touchActionDrop = false;
+let touchActionFill = false;
+let touchActionThrow = false;
+let touchActionPunch = false;
+let touchActionUnlock = false;
+// --- End NEW ---
+
+// Function to detect mobile device (basic check)
+function isMobileDevice() {
+    // Simple check based on user agent - can be made more robust if needed
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
 
 // Initialize keyboard controls
 function setupKeyboardControls() {
@@ -12,56 +36,191 @@ function setupKeyboardControls() {
     });
 }
 
-// Process keyboard input and update character movement
+// REMOVE the old setupTouchControls function entirely
+// function setupTouchControls() { ... } // DELETE THIS FUNCTION
+
+// Initialize touch DRAG controls
+function setupDragControls() {
+    isMobile = isMobileDevice(); // Check if mobile
+    if (!isMobile) return; // Don't set up if not mobile
+
+    // Hide keyboard instructions element on mobile
+    const instructionsElement = document.getElementById('instructions');
+    if (instructionsElement) {
+        instructionsElement.style.display = 'none';
+    }
+
+    // --- NEW: Show Action Button Container on Mobile ---
+    const actionButtonContainer = document.getElementById('action-buttons-container');
+    if (actionButtonContainer) {
+        actionButtonContainer.style.display = 'flex'; // Show the container
+    }
+    // --- End NEW ---
+
+    // Get the canvas element (assuming 'renderer' is globally accessible or passed in)
+    // Reference js/scene.js startLine: 10 endLine: 10 (renderer likely defined here)
+    const targetElement = renderer.domElement; // Attach listeners to the canvas
+
+    targetElement.addEventListener('touchstart', (event) => {
+        if (event.touches.length === 1) {
+            // Check if the touch started on an action button
+            let target = event.target;
+            let isActionButton = false;
+            while (target && target !== document.body) {
+                if (target.classList.contains('action-button')) {
+                    isActionButton = true;
+                    break;
+                }
+                target = target.parentNode;
+            }
+
+            // Only start drag movement if touch is NOT on an action button
+            if (!isActionButton) {
+                isDragging = true;
+                touchStartX = event.touches[0].clientX;
+                touchStartY = event.touches[0].clientY;
+                touchMoveVector = { x: 0, y: 0 };
+                event.preventDefault(); // Prevent scroll only for movement drag
+            }
+        }
+    }, { passive: false });
+
+    targetElement.addEventListener('touchmove', (event) => {
+        if (!isDragging || event.touches.length !== 1) return;
+
+        const currentX = event.touches[0].clientX;
+        const currentY = event.touches[0].clientY;
+        const diffX = currentX - touchStartX;
+        const diffY = currentY - touchStartY;
+        const distance = Math.sqrt(diffX * diffX + diffY * diffY);
+
+        if (distance < touchThreshold) {
+            touchMoveVector = { x: 0, y: 0 };
+        } else {
+            touchMoveVector.x = diffX / distance;
+            touchMoveVector.y = diffY / distance;
+        }
+        event.preventDefault(); // Prevent scroll during movement drag
+
+    }, { passive: false });
+
+    const touchEndHandler = (event) => {
+        if (isDragging) {
+            isDragging = false;
+            touchMoveVector = { x: 0, y: 0 };
+            // Don't prevent default here unconditionally,
+            // allow potential click events if drag was short.
+        }
+    };
+
+    targetElement.addEventListener('touchend', touchEndHandler); // Use default passive value
+    targetElement.addEventListener('touchcancel', touchEndHandler); // Use default passive value
+}
+
+// --- NEW: Setup Action Buttons ---
+function setupActionButtons() {
+    if (!isMobile) return; // Only run on mobile
+
+    const btnPickup = document.getElementById('btn-pickup');
+    const btnDrop = document.getElementById('btn-drop');
+    const btnFill = document.getElementById('btn-fill');
+    const btnThrow = document.getElementById('btn-throw');
+    const btnPunch = document.getElementById('btn-punch');
+    const btnUnlock = document.getElementById('btn-unlock');
+
+    const addTapListener = (button, flagSetter) => {
+        if (button) {
+            button.addEventListener('touchstart', (e) => {
+                e.preventDefault(); // Prevent default actions like zoom/scroll
+                flagSetter(); // Set the corresponding touch action flag
+            }, { passive: false });
+            // No touchend needed here, flags are reset in handleSeedInteraction
+        } else {
+            console.warn(`Action button element not found for flagSetter: ${flagSetter.name}`);
+        }
+    };
+
+    addTapListener(btnPickup, () => { touchActionPickup = true; });
+    addTapListener(btnDrop,   () => { touchActionDrop = true; });
+    addTapListener(btnFill,   () => { touchActionFill = true; });
+    addTapListener(btnThrow,  () => { touchActionThrow = true; });
+    addTapListener(btnPunch,  () => { touchActionPunch = true; });
+    addTapListener(btnUnlock, () => { touchActionUnlock = true; });
+}
+// --- End NEW ---
+
+// Process keyboard OR touch drag input and update character movement
 function processInput() {
-    if (!zowieCharacter) return false;
-    
+    // Ensure Zowie character is loaded before processing input
+    // Reference js/characters.js startLine: 91 endLine: 91
+    if (!zowieCharacter) return { moved: false, directionX: 0, directionZ: 0 }; // Return default state if no character
+
     let directionX = 0;
     let directionZ = 0;
-    
-    if (keys['ArrowUp']) directionZ = -1;
-    if (keys['ArrowDown']) directionZ = 1;
-    if (keys['ArrowLeft']) directionX = -1;
-    if (keys['ArrowRight']) directionX = 1;
-    
-    const movedInput = (directionX !== 0 || directionZ !== 0); // Did user press move keys?
-    let actualMovementOccurred = false; // Did the character actually move?
+    let movedInput = false; // Track if there is *any* input (keyboard or touch)
+
+    if (isMobile) {
+        // Use touch drag vector state on mobile devices
+        directionX = touchMoveVector.x;
+        directionZ = touchMoveVector.y; // Use the calculated Y direction
+        movedInput = isDragging && (Math.abs(directionX) > 0.01 || Math.abs(directionZ) > 0.01); // Check if dragging significantly
+    } else {
+        // Use keyboard input state on non-mobile devices
+        // References js/controls.js startLine: 2 endLine: 2
+        if (keys['ArrowUp']) directionZ = -1;
+        if (keys['ArrowDown']) directionZ = 1;
+        if (keys['ArrowLeft']) directionX = -1;
+        if (keys['ArrowRight']) directionX = 1;
+        movedInput = (directionX !== 0 || directionZ !== 0);
+    }
+
+    let actualMovementOccurred = false; // Track if the character physically moved
 
     if (movedInput) {
-        // Increase movement speed by adjusting these values
-        const moveX = directionX * PARAMS.walkSpeed * 1.1; // 50% faster
-        const moveZ = directionZ * PARAMS.walkSpeed * 1.1;
-        
-        // Calculate potential next position
+        // --- Movement Calculation (using PARAMS.walkSpeed) ---
+        // Ensure PARAMS is defined and accessible
+        const moveSpeed = (typeof PARAMS !== 'undefined' && PARAMS.walkSpeed) ? PARAMS.walkSpeed : 0.05; // Fallback speed
+        // Scale movement by the drag vector magnitude (already normalized) or keyboard input (which is +/- 1)
+        const moveX = directionX * moveSpeed * 1.1; // Slightly increased speed
+        const moveZ = directionZ * moveSpeed * 1.1;
+
+        // --- Collision Detection ---
         const potentialPosition = zowieCharacter.position.clone();
         potentialPosition.x += moveX;
         potentialPosition.z += moveZ;
 
-        // Check for collision with pumpkins at the potential position
         let collisionDetected = false;
-        if (typeof pumpkins !== 'undefined') {
+        // Ensure pumpkins array and collision check function are available
+        // References js/environment/main.js startLine: 192 endLine: 192 (pumpkins likely defined here)
+        // References js/controls.js startLine: 269 endLine: 310 (checkCharacterCollision)
+        if (typeof pumpkins !== 'undefined' && typeof checkCharacterCollision === 'function') {
              collisionDetected = checkCharacterCollision(zowieCharacter, potentialPosition, pumpkins);
         }
 
-        // Only move if no collision detected
+        // --- Apply Movement and Rotation (if no collision) ---
         if (!collisionDetected) {
-            // Rotate Zowie character to face movement direction - make rotation snappier
-            if (directionX !== 0 || directionZ !== 0) {
+            // Rotation - Only rotate if there's significant direction input
+            if (Math.abs(directionX) > 0.01 || Math.abs(directionZ) > 0.01) {
                 const angle = Math.atan2(directionX, directionZ);
-                // Make rotation more immediate with a higher lerp factor
                 const currentAngle = zowieCharacter.rotation.y;
-                const angleDiff = angle - currentAngle;
-                zowieCharacter.rotation.y = currentAngle + angleDiff * 0.3; // Faster rotation
+                let angleDiff = angle - currentAngle;
+                // Wrap angle difference to shortest path (-PI to PI)
+                while (angleDiff <= -Math.PI) angleDiff += Math.PI * 2;
+                while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                // Apply smooth rotation (adjust lerp factor 0.3 for speed)
+                zowieCharacter.rotation.y += angleDiff * 0.3;
             }
-            // Move Zowie character by updating position
-            zowieCharacter.position.copy(potentialPosition); 
-            actualMovementOccurred = true; // Movement happened
+
+            // Position Update
+            zowieCharacter.position.copy(potentialPosition);
+            actualMovementOccurred = true; // Set flag indicating movement occurred
         }
     }
-    
-    // Return state indicating if input was pressed AND if movement occurred
+
+    // Return state including whether input was pressed AND movement happened
     return {
-        moved: movedInput && actualMovementOccurred, 
+        // For animation purposes, report 'moved' if there was input, even if blocked by collision
+        moved: movedInput,
         directionX: directionX,
         directionZ: directionZ
     };
