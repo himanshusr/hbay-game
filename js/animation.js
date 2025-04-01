@@ -51,6 +51,11 @@ function animate() {
     updateZowieAnimation(inputState);
     updateHSRFollowing();
     
+    // Handle button actions / interactions
+    if (typeof handleSeedInteraction === 'function') {
+        handleSeedInteraction();
+    }
+    
     // Update camera
     updateCamera();
     
