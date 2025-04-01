@@ -15,23 +15,38 @@ function setupKeyboardControls() {
 // Process keyboard input and update character movement
 function processInput() {
     if (!zowieCharacter) return false;
-    
+
     let directionX = 0;
     let directionZ = 0;
-    
-    if (keys['ArrowUp']) directionZ = -1;
-    if (keys['ArrowDown']) directionZ = 1;
-    if (keys['ArrowLeft']) directionX = -1;
-    if (keys['ArrowRight']) directionX = 1;
-    
-    const movedInput = (directionX !== 0 || directionZ !== 0); // Did user press move keys?
-    let actualMovementOccurred = false; // Did the character actually move?
+    let isJoystickActive = false;
+
+    // Check joystick input first (use window.joystickInput if defined)
+    if (typeof window.joystickInput !== 'undefined' && (window.joystickInput.x !== 0 || window.joystickInput.y !== 0)) {
+        directionX = window.joystickInput.x;
+        directionZ = window.joystickInput.y; // Y is already inverted in joystick.js
+        isJoystickActive = true;
+        // console.log(`Joystick Input: X=${directionX.toFixed(2)}, Z=${directionZ.toFixed(2)}`); // Optional logging
+    } else {
+        // Fallback to keyboard if joystick is not active
+        if (keys['ArrowUp']) directionZ = -1;
+        if (keys['ArrowDown']) directionZ = 1;
+        if (keys['ArrowLeft']) directionX = -1;
+        if (keys['ArrowRight']) directionX = 1;
+    }
+
+    const movedInput = (directionX !== 0 || directionZ !== 0);
+    let actualMovementOccurred = false;
 
     if (movedInput) {
-        // Increase movement speed by adjusting these values
-        const moveX = directionX * PARAMS.walkSpeed * 1.1; // 50% faster
-        const moveZ = directionZ * PARAMS.walkSpeed * 1.1;
-        
+        // Calculate magnitude for speed scaling (especially for joystick)
+        const magnitude = Math.min(1.0, Math.sqrt(directionX * directionX + directionZ * directionZ));
+
+        // Use the magnitude to scale the speed
+        // Adjust the base speed multiplier (1.1) if needed
+        const moveSpeed = PARAMS.walkSpeed * 1.1;
+        const moveX = directionX * moveSpeed * magnitude; // Apply magnitude scaling
+        const moveZ = directionZ * moveSpeed * magnitude; // Apply magnitude scaling
+
         // Calculate potential next position
         const potentialPosition = zowieCharacter.position.clone();
         potentialPosition.x += moveX;
@@ -39,31 +54,37 @@ function processInput() {
 
         // Check for collision with pumpkins at the potential position
         let collisionDetected = false;
-        if (typeof pumpkins !== 'undefined') {
+        if (typeof pumpkins !== 'undefined' && typeof checkCharacterCollision === 'function') {
              collisionDetected = checkCharacterCollision(zowieCharacter, potentialPosition, pumpkins);
+        } else if (typeof checkCharacterCollision !== 'function') {
+            console.warn("checkCharacterCollision function not found!");
         }
 
-        // Only move if no collision detected
+       // Only move if no collision detected
         if (!collisionDetected) {
-            // Rotate Zowie character to face movement direction - make rotation snappier
+            // Rotate Zowie character to face movement direction
             if (directionX !== 0 || directionZ !== 0) {
                 const angle = Math.atan2(directionX, directionZ);
-                // Make rotation more immediate with a higher lerp factor
-                const currentAngle = zowieCharacter.rotation.y;
-                const angleDiff = angle - currentAngle;
-                zowieCharacter.rotation.y = currentAngle + angleDiff * 0.3; // Faster rotation
+
+                // Use Quaternion slerp for smoother rotation with analog input
+                const targetQuaternion = new THREE.Quaternion();
+                // Y axis is typically the up vector in Three.js
+                targetQuaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), angle);
+
+                // Adjust the slerp factor (0.15) for rotation speed
+                zowieCharacter.quaternion.slerp(targetQuaternion, 0.15);
             }
             // Move Zowie character by updating position
-            zowieCharacter.position.copy(potentialPosition); 
-            actualMovementOccurred = true; // Movement happened
+            zowieCharacter.position.copy(potentialPosition);
+           actualMovementOccurred = true; // Movement happened
         }
     }
-    
+
     // Return state indicating if input was pressed AND if movement occurred
     return {
-        moved: movedInput && actualMovementOccurred, 
-        directionX: directionX,
-        directionZ: directionZ
+        moved: movedInput && actualMovementOccurred,
+        directionX: directionX, // Return the final direction used
+        directionZ: directionZ  // Return the final direction used
     };
 }
 

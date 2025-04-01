@@ -85,7 +85,7 @@ function animate() {
     // --- END: Rotate Keys ---
 
     // Update camera info display
-    updateCameraInfo();
+    // updateCameraInfo();
 
     if (palmTrees) {
         palmTrees.children.forEach(tree => {
