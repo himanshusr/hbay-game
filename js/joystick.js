@@ -70,7 +70,8 @@ function setupJoystick() {
 
         // Calculate normalized input (-1 to 1)
         // Invert Y because screen Y goes down, but 3D Z often goes "forward" as negative
-        window.joystickInput.x = deltaX / maxRadius;
+        // Invert X to reverse left/right direction
+        window.joystickInput.x = -(deltaX / maxRadius); // Reversed X
         window.joystickInput.y = -(deltaY / maxRadius); // Inverted Y
     }
 
