@@ -49,3 +49,50 @@ canvas {
     50% { transform: translate(-50%, -52%); }
     100% { transform: translate(-50%, -50%); }
 }
+
+/* Action Buttons Container */
+#action-buttons-container {
+    /* Styles are mostly inline in HTML for this example, but can be moved here */
+    gap: 10px; /* Spacing between buttons */
+}
+
+/* Base Action Button Style */
+.action-button {
+    padding: 10px 15px;
+    min-width: 100px; /* Ensure buttons have some width */
+    font-size: 16px;
+    color: #333;
+    border: none;
+    border-radius: 20px; /* Rounded corners */
+    cursor: pointer;
+    text-align: center;
+    user-select: none; /* Prevent text selection on tap */
+    -webkit-user-select: none; /* Safari */
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    display: flex; /* Use flex for centering content if needed */
+    justify-content: center;
+    align-items: center;
+}
+
+/* Ghibli-inspired Style */
+.ghibli-button {
+    background-color: rgba(240, 248, 255, 0.8); /* Light, slightly transparent background (AliceBlue) */
+    border: 1px solid rgba(100, 149, 237, 0.5); /* Soft border (CornflowerBlue) */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+    font-family: 'Arial', sans-serif; /* Choose a friendly font */
+    font-weight: bold;
+    color: #5a4a42; /* Earthy text color */
+}
+
+/* Style for when button is pressed */
+.action-button:active {
+    background-color: rgba(210, 228, 245, 0.9); /* Slightly darker when pressed */
+    transform: scale(0.95); /* Slightly shrink when pressed */
+}
+
+/* Suggestion: Add icons using background-image */
+/*
+#btn-pickup { background-image: url('path/to/pickup-icon.png'); background-size: contain; background-repeat: no-repeat; background-position: left center; padding-left: 30px; }
+#btn-drop { background-image: url('path/to/drop-icon.png'); ... }
+etc.
+*/

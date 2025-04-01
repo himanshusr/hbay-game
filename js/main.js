@@ -8,12 +8,23 @@ function init() {
     // Set up keyboard controls
     setupKeyboardControls();
     
+    // Set up touch DRAG controls (will only activate on mobile)
+    setupDragControls();
+    
+    // Set up touch ACTION buttons
+    setupActionButtons();
+    
     // Load character models
     loadCharacters();
     
     // Set up profile placeholders
     createGhibliPlaceholder('Himanshu', 20);
     createGhibliPlaceholder('Zowie', 130);
+    
+    // Cache button elements after setup
+    if (typeof cacheButtonElements === 'function') {
+        cacheButtonElements();
+    }
     
     // Start animation loop
     animate();
@@ -190,7 +201,7 @@ window.showGhibliBirthdayMessage = function() {
     messageContainer.style.borderRadius = '12px';
     messageContainer.style.boxShadow = '0 0 20px rgba(255, 219, 187, 0.6)';
     messageContainer.style.padding = '30px';
-    messageContainer.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+    messageContainer.style.backgroundColor = 'rgba(255, 255, 255, 0.25)';
     messageContainer.style.backdropFilter = 'blur(1px)';
     messageContainer.style.opacity = '0';
     messageContainer.style.transition = 'opacity 1.5s';

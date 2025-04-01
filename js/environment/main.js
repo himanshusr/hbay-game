@@ -40,6 +40,23 @@ var heldKey = null; // Add this variable to store the key object when held
 // Make pumpkins array global
 window.pumpkins = []; 
 
+// --- Add references to global touch flags (defined in controls.js) ---
+// Ensure controls.js is loaded before this file, or pass flags differently.
+// Assuming global scope for simplicity here:
+// extern let touchActionPickup, touchActionDrop, touchActionFill, touchActionThrow, touchActionPunch, touchActionUnlock;
+
+// --- Get Button Elements (ideally once in init, but here for simplicity) ---
+let btnPickupElement, btnDropElement, btnFillElement, btnThrowElement, btnPunchElement, btnUnlockElement;
+
+function cacheButtonElements() {
+    btnPickupElement = document.getElementById('btn-pickup');
+    btnDropElement = document.getElementById('btn-drop');
+    btnFillElement = document.getElementById('btn-fill');
+    btnThrowElement = document.getElementById('btn-throw');
+    btnPunchElement = document.getElementById('btn-punch');
+    btnUnlockElement = document.getElementById('btn-unlock');
+}
+
 // Initialize all environment elements
 function setupEnvironment() {
     sky = createGradientSky();
@@ -191,6 +208,32 @@ function checkZowieProximity(zowiePosition, seedPosition, threshold) {
     return distance < threshold;
 }
 
+// Function to find the closest seed within pickup distance
+function findClosestSeed() {
+    if (!zowieCharacter || typeof seedsArray === 'undefined' || seedsArray.length === 0) {
+        return null; // Cannot find if character or seeds don't exist
+    }
+
+    let closestSeed = null;
+    let minDistanceSq = pickupDistance * pickupDistance; // Use squared distance for efficiency
+
+    const zowiePosition = zowieCharacter.position;
+
+    for (let i = 0; i < seedsArray.length; i++) {
+        const seed = seedsArray[i];
+        if (seed && seed.parent) { // Check if seed exists and is in the scene
+            const distanceSq = zowiePosition.distanceToSquared(seed.position);
+
+            if (distanceSq < minDistanceSq) {
+                minDistanceSq = distanceSq;
+                closestSeed = seed;
+            }
+        }
+    }
+
+    return closestSeed; // Returns the seed object or null
+}
+
 // Helper function to check if Zowie is near the collectible key
 function isNearKey() {
     if (!zowieCharacter || !collectibleKey || !collectibleKey.parent) {
@@ -268,103 +311,118 @@ function createSeeds() {
     return seedsGroup;
 }
 
-// Function to handle seed and bucket interaction with keyboard
+// Modified handleSeedInteraction
+// References js/environment/main.js startLine: 272 endLine: 403
 function handleSeedInteraction() {
     // Handle pickup cooldown
     if (pickupCooldown > 0) {
         pickupCooldown--;
+        // --- Reset flags even during cooldown ---
+        touchActionPickup = false;
+        touchActionDrop = false;
+        touchActionFill = false;
+        touchActionThrow = false;
+        touchActionPunch = false;
+        touchActionUnlock = false;
+        // --- End Reset ---
         return;
     }
-    
-    // First handle P key for punching - give it priority
-    const pKeyPressed = keys['p'] || keys['P'];
-    if (pKeyPressed && !lastPKeyState) {
-        console.log("P key pressed!");
+
+    // Check actions based on keys OR touch flags
+    const pKeyPressed = keys['p'] || keys['P'] || touchActionPunch;
+    const cKeyPressed = keys['c'] || keys['C'] || touchActionPickup;
+    const dKeyPressed = keys['d'] || keys['D'] || touchActionDrop;
+    const fKeyPressed = keys['f'] || keys['F'] || touchActionFill;
+    const tKeyPressed = keys['t'] || keys['T'] || touchActionThrow;
+    const uKeyPressed = keys['u'] || keys['U'] || touchActionUnlock;
+
+    // --- Punching ---
+    if (pKeyPressed && !lastPKeyState) { // Use lastPKeyState to prevent holding
         const nearbyPumpkin = findNearbyPumpkin();
         if (nearbyPumpkin) {
-            console.log("Found pumpkin to punch!");
             punchPumpkin(nearbyPumpkin);
-            pickupCooldown = 20; // Cooldown for punching
-        } else {
-            console.log("No pumpkin found to punch");
+            pickupCooldown = 20;
         }
     }
-    lastPKeyState = pKeyPressed;
-    
-    // Then handle other keys
-    const cKeyPressed = keys['c'] || keys['C'];
-    const dKeyPressed = keys['d'] || keys['D'];
-    const fKeyPressed = keys['f'] || keys['F'];
-    const tKeyPressed = keys['t'] || keys['T'];
-    const uKeyPressed = keys['u'] || keys['U']; // Check for U key
-    
-    // --- Handle U key for unlocking ---
-    // This check should happen before dropping, but after punching
-    if (uKeyPressed && !lastUKeyState) {
+    lastPKeyState = (keys['p'] || keys['P']); // Update keyboard state tracking
+
+    // --- Unlocking ---
+    if (uKeyPressed && !lastUKeyState) { // Use lastUKeyState
         if (isCarryingKey && isNearKeyhole()) {
-            console.log("U key pressed near keyhole while carrying key.");
             unlockDoor();
-            pickupCooldown = 10; // Add a small cooldown
+            pickupCooldown = 10;
         }
     }
-    
-    // C key for pickup
-    if (cKeyPressed && !lastCKeyState) {
+    lastUKeyState = (keys['u'] || keys['U']); // Update keyboard state tracking
+
+    // --- Picking up Seed ---
+    if (cKeyPressed && !lastCKeyState) { // Use lastCKeyState
         if (!isCarryingSeed && !isCarryingBucket && !isCarryingKey) {
-            // *** Prioritize picking up the key ***
-            if (isNearKey()) {
-                pickupKey();
-                // pickupCooldown = 10;
-            }
-            // Then check if near bucket
-            else if (isNearBucket()) {
-                pickupBucket();
-                // pickupCooldown = 10; // Prevent multiple pickups
-            } 
-            // Then check for seeds
-            else {
-                tryPickupSeed();
-                // pickupCooldown = 10;
+            const closestSeed = findClosestSeed();
+            if (closestSeed) {
+                pickupSeed(closestSeed);
+                pickupCooldown = 10;
+            } else {
+                 // --- Picking up Key --- (Combine C key logic)
+                 if (isNearKey()) {
+                     pickupKey(); // Assumes pickupKey is defined
+                     pickupCooldown = 10;
+                 } else {
+                     // --- Picking up Bucket --- (Combine C key logic)
+                     if (isNearBucket() && !isCarryingBucket) {
+                         pickupBucket(); // Assumes pickupBucket is defined
+                         pickupCooldown = 10;
+                     }
+                 }
             }
         }
     }
-    
-    // D key for dropping
-    if (dKeyPressed && !lastDKeyState) {
-        // *** Prevent dropping the key if the unlock action is available ***
-        if (isCarryingKey && isNearKeyhole()) {
-             // Do nothing - U key should be used instead.
-             displayText('Press U to unlock the door!'); // Reinforce the instruction
-        } else if (isCarryingSeed) {
+    lastCKeyState = (keys['c'] || keys['C']); // Update keyboard state tracking
+
+
+    // --- Dropping Item ---
+    if (dKeyPressed && !lastDKeyState) { // Use lastDKeyState
+        if (isCarryingSeed) {
             dropSeed();
             pickupCooldown = 10;
         } else if (isCarryingBucket) {
             dropBucket();
             pickupCooldown = 10;
-        } else if (isCarryingKey) { // Drop key only if not near the keyhole
+        } else if (isCarryingKey) {
             dropKey();
             pickupCooldown = 10;
         }
     }
-    
-    // F key for filling bucket with water
-    if (fKeyPressed && !lastFKeyState && isCarryingBucket && isNearPond() && !heldBucket.hasWater) {
-        fillBucketWithWater();
-        pickupCooldown = 10;
+    lastDKeyState = (keys['d'] || keys['D']); // Update keyboard state tracking
+
+    // --- Filling Bucket ---
+    if (fKeyPressed && !lastFKeyState) { // Use lastFKeyState
+        if (isCarryingBucket && !heldBucket.hasWater && isNearPond()) {
+            fillBucket();
+            pickupCooldown = 10;
+        }
     }
-    
-    // T key for throwing water
-    if (tKeyPressed && !lastTKeyState && isCarryingBucket && heldBucket.hasWater) {
-        throwWater();
-        pickupCooldown = 20; // Longer cooldown for throwing animation
+    lastFKeyState = (keys['f'] || keys['F']); // Update keyboard state tracking
+
+    // --- Throwing Water ---
+    if (tKeyPressed && !lastTKeyState) { // Use lastTKeyState
+        if (isCarryingBucket && heldBucket.hasWater) {
+            // References js/environment/bucket.js startLine: 412 endLine: 594
+            throwWater(); // Assumes throwWater is defined
+            pickupCooldown = 30; // Longer cooldown for throwing
+        }
     }
-    
-    // Update other key states
-    lastCKeyState = cKeyPressed;
-    lastDKeyState = dKeyPressed;
-    lastFKeyState = fKeyPressed;
-    lastTKeyState = tKeyPressed;
-    lastUKeyState = uKeyPressed; // Update U key state
+    lastTKeyState = (keys['t'] || keys['T']); // Update keyboard state tracking
+
+
+    // --- Reset Touch Flags at the end of processing ---
+    touchActionPickup = false;
+    touchActionDrop = false;
+    touchActionFill = false;
+    touchActionThrow = false;
+    touchActionPunch = false;
+    touchActionUnlock = false;
+    // --- End Reset ---
 }
 
 // Try to pick up a seed near Zowie
@@ -644,101 +702,106 @@ function dropKey() {
     displayText('Key dropped.'); 
 }
 
-// Update function to check Zowie's position and show/hide text
+// Modified updateEnvironment to control button visibility
+// References js/environment/main.js startLine: 648 endLine: 681
 function updateEnvironment() {
     if (!zowieCharacter) return;
 
+    // Ensure button elements are cached
+    if (!btnPickupElement) {
+        cacheButtonElements();
+    }
+
     const zowiePosition = zowieCharacter.position.clone();
+    let instruction = ''; // For desktop text
 
-    // --- Interaction Text Logic ---
-    let instruction = ''; // Default to no instruction
+    // --- Hide all buttons initially ---
+    if (isMobile) { // Only manipulate buttons on mobile
+        if (btnPickupElement) btnPickupElement.style.display = 'none';
+        if (btnDropElement) btnDropElement.style.display = 'none';
+        if (btnFillElement) btnFillElement.style.display = 'none';
+        if (btnThrowElement) btnThrowElement.style.display = 'none';
+        if (btnPunchElement) btnPunchElement.style.display = 'none';
+        if (btnUnlockElement) btnUnlockElement.style.display = 'none';
+    }
 
-    // Always check for punching first
+    // --- Determine Context and Show Buttons/Text ---
+
+    // 1. Punching (Highest Priority?)
+    // References js/environment/main.js startLine: 657 endLine: 659
     const nearbyPumpkin = findNearbyPumpkin();
     if (nearbyPumpkin) {
-        instruction = 'Press P to punch the pumpkin!';
+        instruction = 'Press P to punch!';
+        if (isMobile && btnPunchElement) btnPunchElement.style.display = 'flex';
     } else {
-        // Check various proximities only if not near a punchable pumpkin
-        const nearKeyToPickup = isNearKey(); // Is Zowie near the key *on the ground*?
-        const nearKeyhole = isNearKeyhole(); // Is Zowie near the keyhole *area*?
-
-        // Calculate if Zowie is near any seed
-        let nearAnySeed = false;
-        let closestDistance = Infinity;
-        for (let i = 0; i < seedsArray.length; i++) {
-            const seed = seedsArray[i];
-            const distance = zowiePosition.distanceTo(seed.position);
-            if (distance < closestDistance) {
-                closestDistance = distance;
-            }
-        }
-        nearAnySeed = closestDistance <= pickupDistance * 1.2;
-
-        // Check if near bucket
-        const nearBucket = isNearBucket();
-
-        // Check if near pond
-        const nearPond = isNearPond();
-
-        // Determine instruction text based on proximity and state
-        // *** HIGHEST PRIORITY: Unlock Interaction ***
+        // 2. Unlocking (If carrying key near keyhole)
+        const nearKeyhole = isNearKeyhole();
         if (isCarryingKey && nearKeyhole) {
-            instruction = 'Press U to unlock';
+            instruction = 'Press U to unlock!';
+            if (isMobile && btnUnlockElement) btnUnlockElement.style.display = 'flex';
         }
-        // *** Next Priority: Key Pickup ***
-        else if (nearKeyToPickup && !isCarryingSeed && !isCarryingBucket && !isCarryingKey) {
-            instruction = 'Press C to collect key';
-        }
-        // C instruction for seeds or bucket pickup (if not carrying anything and not near key/keyhole)
-        else if (!isCarryingSeed && !isCarryingBucket && !isCarryingKey && (nearAnySeed || nearBucket)) {
-            if (nearBucket) {
+        // 3. Interactions with items Zowie is NOT carrying
+        else if (!isCarryingSeed && !isCarryingBucket && !isCarryingKey) {
+            const closestSeed = findClosestSeed();
+            const nearKey = isNearKey();
+            const nearBucket = isNearBucket();
+
+            if (closestSeed) {
+                instruction = 'Press C to pick up seed';
+                if (isMobile && btnPickupElement) btnPickupElement.style.display = 'flex';
+            } else if (nearKey) {
+                instruction = 'Press C to pick up key';
+                if (isMobile && btnPickupElement) btnPickupElement.style.display = 'flex';
+            } else if (nearBucket) {
                 instruction = 'Press C to pick up bucket';
-            } else {
-                instruction = 'Press C to collect seed';
+                if (isMobile && btnPickupElement) btnPickupElement.style.display = 'flex';
             }
         }
-        // F key instruction when near pond with bucket
-        else if (isCarryingBucket && nearPond && !heldBucket.hasWater) {
-            instruction = 'Press F to fill bucket with water';
-        }
-        // D instruction shown when carrying something (and NOT in unlock situation)
-        else if (isCarryingSeed || isCarryingBucket || isCarryingKey) { // isCarryingKey here means not near keyhole
-            if (isCarryingKey) {
-                instruction = 'Press D to drop key'; // Only shown when not near keyhole
-            } else if (isCarryingBucket) {
-                if (heldBucket.hasWater) {
-                    instruction = 'Press D to drop bucket, T to throw water'; // Combined instructions
-                } else {
-                    instruction = 'Press D to drop bucket';
-                }
-            } else { // Carrying seed
-                instruction = 'Press D to drop seed';
+        // 4. Interactions when carrying the Bucket
+        else if (isCarryingBucket) {
+            const nearPond = isNearPond();
+            if (heldBucket && !heldBucket.hasWater && nearPond) {
+                instruction = 'Press F to fill bucket';
+                if (isMobile && btnFillElement) btnFillElement.style.display = 'flex';
+            } else if (heldBucket && heldBucket.hasWater) {
+                instruction = 'Press T to throw water';
+                if (isMobile && btnThrowElement) btnThrowElement.style.display = 'flex';
             }
+            // Always allow dropping the bucket if carrying it
+            if (isMobile && btnDropElement) btnDropElement.style.display = 'flex';
+            if (!instruction) instruction = 'Press D to drop bucket'; // Add drop text if no other action
+
         }
-        // No specific interaction nearby
-        else {
-            instruction = '';
+        // 5. Interactions when carrying Seed or Key (Drop only)
+        else if (isCarryingSeed || isCarryingKey) {
+             instruction = 'Press D to drop item';
+             if (isMobile && btnDropElement) btnDropElement.style.display = 'flex';
         }
     }
 
-    // Display the determined instruction text
-    displayText(instruction);
-    // --- End Interaction Text Logic ---
 
-
-    // Handle key press for interactions (includes U key now)
-    // This needs to run *after* determining the text for the current frame,
-    // but *before* the next frame, so it reacts to the state shown.
-    handleSeedInteraction();
-    
-
-
-    // Animate water in the pond
-    scene.traverse(function(object) {
-        if (object.isWater) {
-            object.update();
+    // Update instruction text display (for desktop)
+    // References js/utils.js startLine: 1 endLine: 10 (displayText function)
+    if (typeof displayText === 'function') {
+        displayText(instruction);
+    } else {
+        // Fallback if displayText isn't available
+        const instructionElement = document.getElementById('instructionText');
+        if (instructionElement) {
+            instructionElement.textContent = instruction;
         }
-    });
+    }
+
+    // --- Other environment updates ---
+    // (Pumpkin growth, etc.)
+    // References js/environment/pumpkin.js startLine: 100 endLine: 147 (updatePumpkins)
+    if (typeof updatePumpkins === 'function') {
+        updatePumpkins();
+    }
+    // References js/environment/main.js startLine: 192 endLine: 204 (updateGame - bucket upright)
+    if (typeof updateGame === 'function') {
+        updateGame(); // Keep bucket upright if carrying
+    }
 }
 
 // Helper function to apply during animation to maintain bucket upright
@@ -812,4 +875,19 @@ function unlockDoor() {
         heldKey = null;
         displayText('Error unlocking.'); // Indicate an issue
     }
+}
+
+// Function to check if Zowie is near the bucket
+function isNearBucket() {
+    // ... existing isNearBucket function ...
+}
+
+// Function to check if Zowie is near the pond
+function isNearPond() {
+    // ... existing isNearPond function ...
+}
+
+// Function to find a nearby punchable pumpkin
+function findNearbyPumpkin() {
+    // ... existing findNearbyPumpkin function ...
 }
